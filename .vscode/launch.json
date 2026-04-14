@@ -1,0 +1,23 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Backend Debug (FastAPI)",
+      "type": "python",
+      "request": "launch",
+      "module": "uvicorn",  // 指定运行uvicorn模块
+      // "args": "${command:pickArguments}", // 可选：允许在启动调试时动态输入命令行参数
+      "args": [
+        "score:app",       // 后端入口：score.py的app实例
+        "--reload",        // 热重载（可选，调试时建议保留）
+        "--host", "0.0.0.0",
+        "--port", "8000"   // 与前端.env中BACKEND_API_URL的端口一致
+      ],
+      "cwd": "${workspaceFolder}/backend",  // 调试工作目录：指向backend文件夹
+      "envFile": "${workspaceFolder}/backend/.env",  // 加载后端.env环境变量
+      "justMyCode": false,  // 可选：调试第三方库（如FastAPI/uvicorn）时开启
+      "stopOnEntry": false, // 可选：是否在启动时立即断点（建议关闭）
+      "console": "integratedTerminal"  // 调试日志输出到VSCode集成终端
+    }
+  ]
+}

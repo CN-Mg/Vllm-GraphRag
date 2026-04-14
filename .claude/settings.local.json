@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(npm start:*)",
+      "Bash(cat .env)",
+      "Bash(cat .env.local)",
+      "WebSearch"
+    ]
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "listMessages": [
+    {
+      "id": 1,
+      "message": "您好，我需要协助编写适用于Neo4j的Cypher查询语句。",
+      "user": "user",
+      "datetime": "2026/04/11 00:00:00"
+    },
+    {
+      "id": 2,
+      "message": " 欢迎使用 LLM-Graph 模型对话功能。您可以针对已完成处理的文档进行相关提问。",
+      "user": "chatbot",
+      "datetime": "2026/04/11 00:00:00"
+    },
+    {
+      "id": 3,
+      "message": "我需要找到所有在IT部门工作的员工。",
+      "user": "user",
+      "datetime": "2026/04/11 00:00:00"
+    },
+    {
+      "id": 4,
+      "message": "好的，你可以使用以下查询语句：`MATCH (e:Employee)-[:WORKS_IN]->(d:Department {name: 'IT'}) RETURN e.name`。该查询会匹配标签为“Employee”且与“信息技术”部门相关联的节点，并返回这些员工的姓名。",
+      "user": "chatbot",
+      "datetime": "2026/04/11 00:00:00"
+    },
+    {
+      "id": 5,
+      "message": "谢谢！那我该如何获取这类员工的总人数？",
+      "user": "user",
+      "datetime": "2026/04/11 00:00:00"
+    },
+    {
+      "id": 6,
+      "message": "要获取总数，可以使用：`MATCH (e:Employee)-[:WORKS_IN]->(d:Department {name: 'IT'}) RETURN count(e)`。这会计算与“IT”部门相关的所有不同的“Employee”节点。",
+      "user": "chatbot",
+      "datetime": "2026/04/11 00:00:00"
+    }
+  ]
+}
