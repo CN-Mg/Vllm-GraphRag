@@ -338,8 +338,17 @@ def QA_RAG(graph, model, question, document_names, session_id, mode, image_url=N
                     "user": "chatbot"
                 }
 
-            # 获取图片关联的chunks上下文
-            graph_context = get_image_chunk_context(graph, image_url)
+            # 获取图片关联的chunks信息（完整信息）
+            image_chunks_info = get_image_chunk_context(graph, image_url)
+            graph_context = image_chunks_info["text"]
+
+            # 提取 sources 和 chunkdetails
+            sources = list(set(chunk["source"] for chunk in image_chunks_info["chunks"] if chunk.get("source")))
+            chunkdetails = [{
+                "id": chunk["id"],
+                "text": chunk["text"],
+                "score": 1.0  # 图片直接关联，给默认高分
+            } for chunk in image_chunks_info["chunks"] if chunk.get("id")]
 
             # 使用视觉LLM分析图片
             analysis_result = analyze_image_with_vlm(image_url, question, graph_context)
@@ -352,6 +361,8 @@ def QA_RAG(graph, model, question, document_names, session_id, mode, image_url=N
                 "session_id": session_id,
                 "message": analysis_result["response"],
                 "info": {
+                    "sources": sources,                              # 添加 sources
+                    "chunkdetails": chunkdetails,                     # 添加 chunkdetails
                     "model": analysis_result["model"],
                     "query_map_suggestions": analysis_result["query_map_suggestions"],
                     "image_url": image_url,

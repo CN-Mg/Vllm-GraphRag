@@ -18,6 +18,7 @@ CHAT_MODE_IMAGE_GRAPH_VECTOR = "image+graph+vector"
 ## VISION LLM
 VISION_LLM_MODEL = "v-GLM"  # 使用glm-4.6v-flash作为视觉模型
 OPENAI_MODELS = ["GLM","深度求索","通义千问", "Ollama", "v-GLM"]
+GEMINI_MODELS = ["gemini-1.0-pro", "gemini-1.5-pro"]
 
 BUCKET_UPLOAD = 'llm-graph-builder-upload'
 BUCKET_FAILED_FILE = 'llm-graph-builder-failed'

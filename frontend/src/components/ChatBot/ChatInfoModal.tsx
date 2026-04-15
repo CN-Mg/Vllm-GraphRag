@@ -26,7 +26,6 @@ import type { Node, Relationship } from '@neo4j-nvl/base';
 import { calcWordColor } from '@neo4j-devtools/word-color';
 import ReactMarkdown from 'react-markdown';
 import { GlobeAltIconOutline } from '@neo4j-ndl/react/icons';
-import { youtubeLinkValidation } from '../../utils/Utils';
 import { ThemeWrapperContext } from '../../context/ThemeWrapper';
 import { ClipboardDocumentCheckIconOutline } from '@neo4j-ndl/react/icons';
 
@@ -221,34 +220,12 @@ const ChatInfoModal: React.FC<chatInfoMessage> = ({
                             </Typography>
                           </div>
                         )}
-                        {youtubeLinkValidation(link) && (
-                          <>
-                            <div className='flex flex-row inline-block justiy-between items-center'>
-                              <img src={youtubelogo} width={20} height={20} className='mr-2' />
-                              <TextLink href={link} externalLink={true}>
-                                <HoverableLink url={link}>
-                                  <Typography
-                                    variant='body-medium'
-                                    className='text-ellipsis whitespace-nowrap overflow-hidden max-w-lg'
-                                  >
-                                    {link}
-                                  </Typography>
-                                </HoverableLink>
-                              </TextLink>
-                            </div>
-                          </>
-                        )}
-                        {!link?.startsWith('s3://') &&
-                          !link?.includes('storage.googleapis.com') &&
-                          !link?.includes('wikipedia.org') &&
-                          !link?.includes('youtube.com') && (
-                            <div className='flex flex-row inline-block justify-between items-center'>
-                              <GlobeAltIconOutline className='n-size-token-7' />
-                              <TextLink href={link} externalLink={true}>
-                                <Typography variant='body-medium'>{link}</Typography>
-                              </TextLink>
-                            </div>
-                          )}
+                        <div className='flex flex-row inline-block justify-between items-center'>
+                          <GlobeAltIconOutline className='n-size-token-7' />
+                          <TextLink href={link} externalLink={true}>
+                            <Typography variant='body-medium'>{link}</Typography>
+                          </TextLink>
+                        </div>
                       </>
                     ) : (
                       <div className='flex flex-row inline-block justify-between items-center'>

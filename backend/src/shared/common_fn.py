@@ -4,7 +4,6 @@ import logging
 from modelscope import snapshot_download
 from sentence_transformers import SentenceTransformer
 
-from src.document_sources.youtube import create_youtube_url
 from langchain_community.embeddings.sentence_transformer import SentenceTransformerEmbeddings
 from langchain_google_vertexai import VertexAIEmbeddings
 from langchain_openai import OpenAIEmbeddings
@@ -19,9 +18,7 @@ from langchain_openai import ChatOpenAI
 from langchain_google_vertexai import ChatVertexAI
 from langchain_groq import ChatGroq
 from langchain_google_vertexai import HarmBlockThreshold, HarmCategory
-from langchain_experimental.graph_transformers.diffbot import DiffbotGraphTransformer
 
-import boto3
 from minio import Minio
 from minio.error import S3Error
 # from neo4j.debug import watch
@@ -74,36 +71,23 @@ def upload_image_to_minio(local_file_path, blob_name):
     except S3Error as e:
         raise Exception(f"MinIO 上传失败: {e}")
 
-def check_url_source(source_type, yt_url:str=None, wiki_query:str=None):
-    language=''
+def check_url_source(source_type, url:str=None):
+    """
+    Check URL source type and return processed information
+    Currently only supports 'web' source type
+    """
     try:
-      logging.info(f"incoming URL: {yt_url}")
-      if source_type == 'youtube':
-        if re.match('(?:https?:\/\/)?(?:www\.)?youtu\.?be(?:\.com)?\/?.*(?:watch|embed)?(?:.*v=|v\/|\/)([\w\-_]+)\&?',yt_url.strip()):
-          youtube_url = create_youtube_url(yt_url.strip())
-          logging.info(youtube_url)
-          return youtube_url,language
-        else:
-          raise Exception('Incoming URL is not youtube URL')
-      
-      elif  source_type == 'Wikipedia':
-        wiki_query_id=''
-        #pattern = r"https?:\/\/([a-zA-Z0-9\.\,\_\-\/]+)\.wikipedia\.([a-zA-Z]{2,3})\/wiki\/([a-zA-Z0-9\.\,\_\-\/]+)"
-        wikipedia_url_regex = r'https?:\/\/(www\.)?([a-zA-Z]{2,3})\.wikipedia\.org\/wiki\/(.*)'
-        wiki_id_pattern = r'^[a-zA-Z0-9 _\-\.\,\:\(\)\[\]\{\}\/]*$'
-        
-        match = re.search(wikipedia_url_regex, wiki_query.strip())
-        if match:
-                language = match.group(2)
-                wiki_query_id = match.group(3)
-          # else : 
-          #       languages.append("en")
-          #       wiki_query_ids.append(wiki_url.strip())
-        else:
-            raise Exception(f'Not a valid wikipedia url: {wiki_query} ')
+      logging.info(f"incoming URL: {url}")
 
-        logging.info(f"wikipedia query id = {wiki_query_id}")     
-        return wiki_query_id, language     
+      if source_type == 'web':
+        # Basic URL validation
+        if not url or not url.startswith(('http://', 'https://')):
+            raise Exception('Invalid URL format')
+        return url, 'en'  # Default to English
+
+      else:
+        raise Exception(f'Unsupported source type: {source_type}')
+
     except Exception as e:
       logging.error(f"Error in recognize URL: {e}")
       raise Exception(e)
@@ -163,21 +147,16 @@ def save_graphDocuments_in_neo4j(graph:Neo4jGraph, graph_document_list:List[Grap
   graph.add_graph_documents(graph_document_list)
 
 def delete_uploaded_local_file(merged_file_path, file_name):
+  """Delete uploaded local file"""
   file_path = Path(merged_file_path)
   if file_path.exists():
     file_path.unlink()
     logging.info(f'file {file_name} deleted successfully')
-   
+
 def close_db_connection(graph, api_name):
   if not graph._driver._closed:
       logging.info(f"closing connection for {api_name} api")
       # graph._driver.close()
-
-def create_gcs_bucket_folder_name_hashed(uri, file_name):
-  folder_name = uri + file_name
-  folder_name_sha1 = hashlib.sha1(folder_name.encode())
-  folder_name_sha1_hashed = folder_name_sha1.hexdigest()
-  return folder_name_sha1_hashed
 
 def formatted_time(current_time):
   formatted_time = current_time.strftime('%Y-%m-%d %H:%M:%S %Z')

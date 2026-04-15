@@ -304,28 +304,55 @@ def generate_query_map_suggestions(analysis_text: str, graph_context: str) -> Di
     return suggestions
 
 
-def get_image_chunk_context(graph, image_url: str) -> str:
+def get_image_chunk_context(graph, image_url: str) -> Dict[str, Any]:
     """
-    获取与图片关联的chunks的文本上下文
+    获取与图片关联的chunks的完整信息
 
     Args:
         graph: Neo4jGraph实例
         image_url: 图片URL
 
     Returns:
-        关联chunks的文本内容
+        {
+            "text": 关联chunks的文本内容,
+            "chunks": [{
+                "id": chunk_id,
+                "text": chunk_text,
+                "source": source_file
+            }]
+        }
     """
     try: #(:Chunk)
         query = """
         MATCH (img:Image {url: $image_url})-[:CONTAINS_IMAGE]-(c:Chunk)
-        RETURN collect(DISTINCT c.text) as chunk_texts
+        OPTIONAL MATCH (c:Chunk)-[:PART_OF]->(d:Document)
+        RETURN collect(DISTINCT {
+            id: c.id,
+            text: coalesce(c.text, ''),
+            source: d.fileName
+        }) as chunk_info
         """
         result = graph.query(query, params={"image_url": image_url})
 
-        if result and result[0]["chunk_texts"]:
-            return "\n\n".join([text for text in result[0]["chunk_texts"] if text])
-        return ""
+        chunks = []
+        text_content = []
+
+        if result and result[0]["chunk_info"]:
+            for chunk in result[0]["chunk_info"]:
+                if chunk["id"]:
+                    chunks.append({
+                        "id": chunk["id"],
+                        "text": chunk["text"],
+                        "source": chunk.get("source", "Unknown")
+                    })
+                    if chunk["text"]:
+                        text_content.append(chunk["text"])
+
+        return {
+            "text": "\n\n".join(text_content),
+            "chunks": chunks
+        }
 
     except Exception as e:
         logging.error(f"Error getting image chunk context: {e}")
-        return ""
+        return {"text": "", "chunks": []}

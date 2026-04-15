@@ -2,11 +2,7 @@ import { Drawer, Flex, StatusIndicator, Typography } from '@neo4j-ndl/react';
 import DropZone from '../DataSources/Local/DropZone';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { healthStatus } from '../../services/HealthStatus';
-import S3Component from '../DataSources/AWS/S3Bucket';
-import S3Modal from '../DataSources/AWS/S3Modal';
 import { DrawerProps } from '../../types';
-import GCSButton from '../DataSources/GCS/GCSButton';
-import GCSModal from '../DataSources/GCS/GCSModal';
 import CustomAlert from '../UI/Alert';
 import { useAlertContext } from '../../context/Alert';
 import { APP_SOURCES } from '../../utils/Constants';
@@ -16,8 +12,6 @@ import GenericModal from '../WebSources/GenericSourceModal';
 /* DrawerDropzone 组件是侧边栏中的一个核心组件，负责根据环境变量动态渲染不同的数据源输入选项（本地文件、Web来源等），并显示后端连接状态 */
 const DrawerDropzone: React.FC<DrawerProps> = ({ isExpanded }) => {
   const [isBackendConnected, setIsBackendConnected] = useState<boolean>(false);
-  const [showModal, setshowModal] = useState<boolean>(false);
-  const [showGCSModal, setShowGCSModal] = useState<boolean>(false);
   const [showGenericModal, setshowGenericModal] = useState<boolean>(false);
   const { closeAlert, alertState } = useAlertContext();
 
@@ -33,18 +27,6 @@ const DrawerDropzone: React.FC<DrawerProps> = ({ isExpanded }) => {
     getHealthStatus();
   }, []);
 
-  const openModal = useCallback(() => {
-    setshowModal(true);
-  }, []);
-  const hideModal = useCallback(() => {
-    setshowModal(false);
-  }, []);
-  const openGCSModal = useCallback(() => {
-    setShowGCSModal(true);
-  }, []);
-  const hideGCSModal = useCallback(() => {
-    setShowGCSModal(false);
-  }, []);
   const openGenericModal = useCallback(() => {
     setshowGenericModal(true);
   }, []);
@@ -96,7 +78,7 @@ const DrawerDropzone: React.FC<DrawerProps> = ({ isExpanded }) => {
                           <DropZone />
                         </div>
                       )}
-                      {/* Web 组件独立渲染（不再嵌套在s3/gcs条件里） */}
+                      {/* Web 组件独立渲染 */}
                       {APP_SOURCES != undefined && APP_SOURCES.includes('web') && (
                         <div className={`outline-dashed imageBg ${process.env.ENV === 'PROD' ? 'w-[245px]' : ''}`}>
                           <GenericButton openModal={openGenericModal}></GenericButton>
@@ -106,26 +88,6 @@ const DrawerDropzone: React.FC<DrawerProps> = ({ isExpanded }) => {
                             closeHandler={closeGenericModal}
                           ></GenericModal>
                         </div>
-                      )}
-                      {/* S3/GCS 原有逻辑保留 */}
-                      {(APP_SOURCES != undefined && APP_SOURCES.includes('s3')) ||
-                      (APP_SOURCES != undefined && APP_SOURCES.includes('gcs')) ? (
-                        <>
-                          {APP_SOURCES.includes('s3') && (
-                            <div className={`outline-dashed imageBg ${process.env.ENV === 'PROD' ? 'w-[245px]' : ''}`}>
-                              <S3Component openModal={openModal} />
-                              <S3Modal hideModal={hideModal} open={showModal} />{' '}
-                            </div>
-                          )}
-                          {APP_SOURCES.includes('gcs') && (
-                            <div className={`outline-dashed imageBg ${process.env.ENV === 'PROD' ? 'w-[245px]' : ''}`}>
-                              <GCSButton openModal={openGCSModal} />
-                              <GCSModal openGCSModal={openGCSModal} open={showGCSModal} hideModal={hideGCSModal} />
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <></>
                       )}
                     </Flex>
                   </>
@@ -148,26 +110,6 @@ const DrawerDropzone: React.FC<DrawerProps> = ({ isExpanded }) => {
                             closeHandler={closeGenericModal}
                           ></GenericModal>
                         </div>
-                      )}
-                      {/* S3/GCS 原有逻辑保留 */}
-                      {(APP_SOURCES != undefined && APP_SOURCES.includes('s3')) ||
-                      (APP_SOURCES != undefined && APP_SOURCES.includes('gcs')) ? (
-                        <>
-                          {APP_SOURCES != undefined && APP_SOURCES.includes('s3') && (
-                            <div className={`outline-dashed imageBg ${process.env.ENV === 'PROD' ? 'w-[245px]' : ''}`}>
-                              <S3Component openModal={openModal} />
-                              <S3Modal hideModal={hideModal} open={showModal} />{' '}
-                            </div>
-                          )}
-                          {APP_SOURCES != undefined && APP_SOURCES.includes('gcs') && (
-                            <div className={`outline-dashed imageBg ${process.env.ENV === 'PROD' ? 'w-[245px]' : ''}`}>
-                              <GCSButton openModal={openGCSModal} />
-                              <GCSModal openGCSModal={openGCSModal} open={showGCSModal} hideModal={hideGCSModal} />
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <></>
                       )}
                     </Flex>
                   </>

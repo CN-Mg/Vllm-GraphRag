@@ -9,8 +9,6 @@ export default function useSourceInput(
   validator: (e: string) => boolean,
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>,
   fileSource: string,
-  isWikiQuery?: boolean,
-  isYoutubeLink?: boolean,
   isWebLink?: boolean
 ) {
   const [inputVal, setInputVal] = useState<string>('');
@@ -68,12 +66,8 @@ export default function useSourceInput(
             userCredentials: userCredentials as UserCredentials,
             model: model,
             source_type: fileSource,
+            urlParam: url.trim(),
           };
-          if (isWikiQuery) {
-            params.wikiquery = url.trim();
-          } else if (isYoutubeLink || isWebLink) {
-            params.urlParam = url.trim();
-          }
           const apiResponse = await urlScanAPI(params);
           setIsLoading(false);
           setStatus('success');
@@ -117,9 +111,6 @@ export default function useSourceInput(
                 // total_pages: 1,
                 ...defaultValues,
               };
-              if (isWikiQuery) {
-                baseValues.wiki_query = item.fileName;
-              }
               copiedFilesData.unshift(baseValues);
             } else {
               const tempFileData = copiedFilesData[filedataIndex];
@@ -157,7 +148,7 @@ export default function useSourceInput(
       }, 3000);
     },
 
-    [filesData, isWikiQuery, isYoutubeLink, isWebLink, isValid, fileSource, model]
+    [filesData, isWebLink, isValid, fileSource, model]
   );
 
   return {

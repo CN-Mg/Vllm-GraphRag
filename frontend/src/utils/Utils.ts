@@ -12,28 +12,13 @@ export const url = () => {
   return !url || !url.match('/$') ? url : url.substring(0, url.length - 1);
 };
 
-// validation check for s3 bucket url
-export const validation = (url: string) => {
-  return url.trim() != '' && /^s3:\/\/([^/]+)\/?$/.test(url) != false;
-};
-
-export const wikiValidation = (url: string) => {
-  return url.trim() != '' && /https:\/\/([a-zA-Z]{2,3})\.wikipedia\.org\/wiki\/(.*)/gm.test(url) != false;
-};
 export const webLinkValidation = (url: string) => {
   return (
     url.trim() != '' &&
     /(http(s)?:\/\/.)?(www\.)?[-a-zA-Z0-9@:%._~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_.~#?&//=]*)/g.test(url) != false
   );
 };
-export const youtubeLinkValidation = (url: string) => {
-  return (
-    url.trim() != '' &&
-    /^(?:https?:\/\/)?(?:www\.)?(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))((\w|-){11})(?:\S+)?$/.test(
-      url
-    ) != false
-  );
-};
+
 // Status indicator icons to status column
 export const statusCheck = (status: string) => {
   switch (status) {
@@ -100,15 +85,15 @@ export const getSize = (node: any) => {
 
 export const getNodeCaption = (node: any) => {
   if (node.properties.name) {
-    return node.properties.name;
+    return node.properties.name as string;
   }
   if (node.properties.text) {
-    return node.properties.text;
+    return node.properties.text as string;
   }
   if (node.properties.fileName) {
-    return node.properties.fileName;
+    return node.properties.fileName as string;
   }
-  return node.properties.id;
+  return node.properties.id as string;
 };
 
 export const getIcon = (node: any) => {
@@ -168,7 +153,7 @@ export const processGraphData = (neoNodes: Node[], neoRels: Relationship[]) => {
 
 export const filterData = (
   graphType: GraphType[],
-  allNodes: Node[],
+  allNodes: any[],
   allRelationships: Relationship[],
   scheme: Scheme
 ) => {
@@ -188,9 +173,9 @@ export const filterData = (
     filteredNodes = entityNode ? entityNode : [];
     // @ts-ignore
     filteredRelations = allRelationships.filter(
-      (rel) => !['PART_OF', 'FIRST_CHUNK', 'HAS_ENTITY', 'SIMILAR', 'NEXT_CHUNK'].includes(rel.caption)
+      (rel) => !['PART_OF', 'FIRST_CHUNK', 'HAS_ENTITY', 'SIMILAR', 'NEXT_CHUNK'].includes(rel.caption as string)
     );
-    filteredScheme = Object.fromEntries(entityTypes.map((key) => [key, scheme[key]])) as Scheme;
+    filteredScheme = Object.fromEntries(entityTypes.map((key) => [key, scheme[key as string] as string])) as Scheme;
   } else if (!graphType.includes('Document') && !graphType.includes('Entities') && graphType.includes('Chunk')) {
     // Only Chunk
     // @ts-ignore
@@ -201,21 +186,29 @@ export const filterData = (
   } else if (graphType.includes('Document') && graphType.includes('Entities') && !graphType.includes('Chunk')) {
     // Document + Entity
     // @ts-ignore
+    // @ts-ignore
+    // @ts-ignore
     filteredNodes = allNodes.filter(
+      // @ts-ignore
+      // @ts-ignore
+      // @ts-ignore
       (node) =>
         node.labels.includes('Document') || (!node.labels.includes('Document') && !node.labels.includes('Chunk'))
     );
     // @ts-ignore
+    // @ts-ignore
     filteredRelations = allRelationships.filter(
-      (rel) => !['PART_OF', 'FIRST_CHUNK', 'HAS_ENTITY', 'SIMILAR', 'NEXT_CHUNK'].includes(rel.caption)
+      (rel) => !['PART_OF', 'FIRST_CHUNK', 'HAS_ENTITY', 'SIMILAR', 'NEXT_CHUNK'].includes(rel.caption as string)
     );
   } else if (graphType.includes('Document') && !graphType.includes('Entities') && graphType.includes('Chunk')) {
     // Document + Chunk
     // @ts-ignore
     filteredNodes = allNodes.filter((node) => node.labels.includes('Document') || node.labels.includes('Chunk'));
     // @ts-ignore
+    // @ts-ignore
+    // @ts-ignore
     filteredRelations = allRelationships.filter((rel) =>
-      ['PART_OF', 'FIRST_CHUNK', 'SIMILAR', 'NEXT_CHUNK'].includes(rel.caption)
+      ['PART_OF', 'FIRST_CHUNK', 'SIMILAR', 'NEXT_CHUNK'].includes(rel.caption as string)
     );
     filteredScheme = { Document: scheme.Document, Chunk: scheme.Chunk };
   } else if (!graphType.includes('Document') && graphType.includes('Entities') && graphType.includes('Chunk')) {

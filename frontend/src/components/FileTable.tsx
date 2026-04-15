@@ -127,15 +127,7 @@ const FileTable = forwardRef<ChildRef, FileTableProps>((props, ref) => {
         cell: (info) => {
           return (
             <div className='textellipsis'>
-              <span
-                title={
-                  (info.row.original?.fileSource === 's3 bucket' && info.row.original?.source_url) ||
-                  (info.row.original?.fileSource === 'youtube' && info.row.original?.source_url) ||
-                  info.getValue()
-                }
-              >
-                {info.getValue()}
-              </span>
+              <span title={info.getValue()}>{info.getValue()}</span>
             </div>
           );
         },
@@ -258,11 +250,7 @@ const FileTable = forwardRef<ChildRef, FileTableProps>((props, ref) => {
       columnHelper.accessor((row) => row, {
         id: 'source',
         cell: (info) => {
-          if (
-            info.row.original.fileSource === 'youtube' ||
-            info.row.original.fileSource === 'Wikipedia' ||
-            info.row.original.fileSource === 'web-url'
-          ) {
+          if (info.row.original.fileSource === 'web-url') {
             return (
               <Flex>
                 <span>
@@ -368,26 +356,19 @@ const FileTable = forwardRef<ChildRef, FileTableProps>((props, ref) => {
                   processing: item?.processingTime ?? 'None',
                   relationshipCount: item?.relationshipCount ?? 0,
                   status:
-                    item?.fileSource === 's3 bucket' && localStorage.getItem('accesskey') === item?.awsAccessKeyId
-                      ? item?.status
-                      : item?.fileSource === 'local file'
+                    item?.fileSource === 'local file'
                       ? item?.status
                       : item?.status === 'Completed' || item.status === 'Failed'
                       ? item?.status
-                      : item?.fileSource == 'Wikipedia' ||
-                        item?.fileSource == 'youtube' ||
-                        item?.fileSource == 'gcs bucket'
+                      : item?.fileSource === 'web-url'
                       ? item?.status
                       : 'N/A',
                   model: item?.model ?? model,
                   id: uuidv4(),
                   source_url: item?.url != 'None' && item?.url != '' ? item.url : '',
                   fileSource: item?.fileSource ?? 'None',
-                  gcsBucket: item?.gcsBucket,
-                  gcsBucketFolder: item?.gcsBucketFolder,
                   errorMessage: item?.errorMessage,
                   uploadprogess: item?.uploadprogress ?? 0,
-                  google_project_id: item?.gcsProjectId,
                   language: item?.language ?? '',
                   processingProgress:
                     item?.processed_chunk != undefined &&
@@ -395,8 +376,6 @@ const FileTable = forwardRef<ChildRef, FileTableProps>((props, ref) => {
                     !isNaN(Math.floor((item?.processed_chunk / item?.total_chunks) * 100))
                       ? Math.floor((item?.processed_chunk / item?.total_chunks) * 100)
                       : undefined,
-                  // total_pages: item?.total_pages ?? 0,
-                  access_token: item?.access_token ?? '',
                 });
               }
             });

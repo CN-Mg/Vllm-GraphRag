@@ -5,7 +5,12 @@
       "Bash(npm start:*)",
       "Bash(cat .env)",
       "Bash(cat .env.local)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(python test_imports.py)",
+      "Bash(xargs grep:*)",
+      "Bash(git:*)",
+      "Bash(python -m py_compile src/image_analysis.py src/QA_integration_new.py)",
+      "Bash(find D:\\\\_Fault_Diagnosis\\\\llm-graph-builder\\\\backend:*)"
     ]
   }
 }

@@ -4,7 +4,6 @@ from langchain_community.graphs import Neo4jGraph
 import logging
 import os
 from typing import List, Dict, Any
-from src.document_sources.youtube import get_chunks_with_timestamps
 
 logging.basicConfig(format="%(asctime)s - %(message)s", level="INFO")
 
@@ -44,8 +43,14 @@ class CreateChunksofDocument:
                     chunks.append(Document(page_content=chunk.page_content, metadata=chunk_metadata))
 
         elif 'length' in self.pages[0].metadata:
+            # For video transcripts or content with length metadata
             chunks_without_timestamps = text_splitter.split_documents(self.pages)
-            chunks = get_chunks_with_timestamps(chunks_without_timestamps, self.pages[0].metadata['source'])
+            # Simple timestamp assignment - can be enhanced based on specific needs
+            chunks = []
+            for i, chunk in enumerate(chunks_without_timestamps):
+                chunk_metadata = chunk.metadata.copy()
+                chunk_metadata['source'] = self.pages[0].metadata['source']
+                chunks.append(Document(page_content=chunk.page_content, metadata=chunk_metadata))
         else:
             chunks = text_splitter.split_documents(self.pages)
         return chunks

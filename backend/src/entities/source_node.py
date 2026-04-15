@@ -7,10 +7,6 @@ class sourceNode:
     file_source:str=None
     status:str=None
     url:str=None
-    gcsBucket:str=None
-    gcsBucketFolder:str=None
-    gcsProjectId:str=None
-    awsAccessKeyId:str=None
     node_count:int=None
     relationship_count:str=None
     model:str=None
@@ -23,4 +19,3 @@ class sourceNode:
     language:str=None
     is_cancelled:bool=None
     processed_chunk:int=None
-    access_token:str=None

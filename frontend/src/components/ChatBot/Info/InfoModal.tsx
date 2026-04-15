@@ -8,7 +8,6 @@ import gcslogo from '../../../assets/images/gcs.webp';
 import s3logo from '../../../assets/images/s3logo.png';
 import { Chunk, Entity, GroupedEntity, UserCredentials, chatInfoMessage } from '../../../types';
 import { useEffect, useMemo, useState } from 'react';
-import HoverableLink from '../../UI/HoverableLink';
 import GraphViewButton from '../../Graph/GraphViewButton';
 import { chunkEntitiesAPI } from '../../../services/ChunkEntitiesInfo';
 import { useCredentials } from '../../../context/UserCredentials';
@@ -16,7 +15,6 @@ import type { Node, Relationship } from '@neo4j-nvl/base';
 import { calcWordColor } from '@neo4j-devtools/word-color';
 import ReactMarkdown from 'react-markdown';
 import { GlobeAltIconOutline } from '@neo4j-ndl/react/icons';
-import { youtubeLinkValidation } from '../../../utils/Utils';
 const InfoModal: React.FC<chatInfoMessage> = ({ sources, model, total_tokens, response_time, chunk_ids }) => {
   const [activeTab, setActiveTab] = useState<number>(3);
   const [infoEntities, setInfoEntities] = useState<Entity[]>([]);
@@ -117,79 +115,12 @@ const InfoModal: React.FC<chatInfoMessage> = ({ sources, model, total_tokens, re
                 return (
                   <li key={index} className='flex flex-row inline-block justify-between items-center p-2'>
                     {link?.startsWith('http') || link?.startsWith('https') ? (
-                      <>
-                        {link?.includes('wikipedia.org') && (
-                          <div className='flex flex-row inline-block justify-between items-center'>
-                            <img src={wikipedialogo} width={20} height={20} className='mr-2' alt='Wikipedia Logo' />
-                            <TextLink href={link} externalLink={true}>
-                              <HoverableLink url={link}>
-                                <Typography
-                                  variant='body-medium'
-                                  className='text-ellipsis whitespace-nowrap overflow-hidden max-w-lg'
-                                >
-                                  {link}
-                                </Typography>
-                              </HoverableLink>
-                            </TextLink>
-                          </div>
-                        )}
-                        {link?.includes('storage.googleapis.com') && (
-                          <div className='flex flex-row inline-block justify-between items-center'>
-                            <img
-                              src={gcslogo}
-                              width={20}
-                              height={20}
-                              className='mr-2'
-                              alt='Google Cloud Storage Logo'
-                            />
-                            <Typography
-                              variant='body-medium'
-                              className='text-ellipsis whitespace-nowrap overflow-hidden max-w-lg'
-                            >
-                              {decodeURIComponent(link).split('/').at(-1)?.split('?')[0] ?? 'GCS File'}
-                            </Typography>
-                          </div>
-                        )}
-                        {link?.startsWith('s3://') && (
-                          <div className='flex flex-row inline-block justify-between items-center'>
-                            <img src={s3logo} width={20} height={20} className='mr-2' alt='S3 Logo' />
-                            <Typography
-                              variant='body-medium'
-                              className='text-ellipsis whitespace-nowrap overflow-hidden max-w-lg'
-                            >
-                              {decodeURIComponent(link).split('/').at(-1) ?? 'S3 File'}
-                            </Typography>
-                          </div>
-                        )}
-                        {youtubeLinkValidation(link) && (
-                          <>
-                            <div className='flex flex-row inline-block justiy-between items-center'>
-                              <img src={youtubelogo} width={20} height={20} className='mr-2' />
-                              <TextLink href={link} externalLink={true}>
-                                <HoverableLink url={link}>
-                                  <Typography
-                                    variant='body-medium'
-                                    className='text-ellipsis whitespace-nowrap overflow-hidden max-w-lg'
-                                  >
-                                    {link}
-                                  </Typography>
-                                </HoverableLink>
-                              </TextLink>
-                            </div>
-                          </>
-                        )}
-                        {!link?.startsWith('s3://') &&
-                          !link?.includes('storage.googleapis.com') &&
-                          !link?.includes('wikipedia.org') &&
-                          !link?.includes('youtube.com') && (
-                            <div className='flex flex-row inline-block justify-between items-center'>
-                              <GlobeAltIconOutline className='n-size-token-7' />
-                              <TextLink href={link} externalLink={true}>
-                                <Typography variant='body-medium'>{link}</Typography>
-                              </TextLink>
-                            </div>
-                          )}
-                      </>
+                      <div className='flex flex-row inline-block justify-between items-center'>
+                        <GlobeAltIconOutline className='n-size-token-7' />
+                        <TextLink href={link} externalLink={true}>
+                          <Typography variant='body-medium'>{link}</Typography>
+                        </TextLink>
+                      </div>
                     ) : (
                       <div className='flex flex-row inline-block justify-between items-center'>
                         <DocumentTextIconOutline className='n-size-token-7 mr-2' />

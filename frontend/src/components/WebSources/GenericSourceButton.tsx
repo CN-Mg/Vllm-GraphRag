@@ -30,8 +30,6 @@ export default function GenericButton({ openModal }: DataComponentProps) {
               text={
                 <Typography variant='body-small'>
                   <Flex gap='3' alignItems='flex-start'>
-                    {APP_SOURCES != undefined && APP_SOURCES.includes('youtube') && <span>Youtube</span>}
-                    {APP_SOURCES != undefined && APP_SOURCES.includes('wiki') && <span>Wikipedia</span>}
                     {APP_SOURCES != undefined && APP_SOURCES.includes('web') && <span>Website</span>}
                   </Flex>
                 </Typography>

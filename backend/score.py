@@ -25,7 +25,6 @@ from src.post_processing import create_fulltext, create_entity_embedding
 from sse_starlette.sse import EventSourceResponse
 import json
 from starlette.middleware.sessions import SessionMiddleware
-from google.oauth2.credentials import Credentials
 import os
 from src.logger import CustomLogger
 from datetime import datetime, timezone
@@ -75,46 +74,23 @@ async def create_source_knowledge_graph_url(
     password=Form(None),
     source_url=Form(None),
     database=Form(None),
-    aws_access_key_id=Form(None),
-    aws_secret_access_key=Form(None),
-    wiki_query=Form(None),
     model=Form(None),
-    gcs_bucket_name=Form(None),
-    gcs_bucket_folder=Form(None),
-    source_type=Form(None),
-    gcs_project_id=Form(None),
-    access_token=Form(None)
+    source_type=Form(None)
     ):
-    
+
     try:
-        if source_url is not None:
-            source = source_url
-        else:
-            source = wiki_query
-            
+        source = source_url
         graph = create_graph_database_connection(uri, userName, password, database)
-        if source_type == 's3 bucket' and aws_access_key_id and aws_secret_access_key:
-            lst_file_name,success_count,failed_count = await asyncio.to_thread(create_source_node_graph_url_s3,graph, model, source_url, aws_access_key_id, aws_secret_access_key, source_type
-            )
-        elif source_type == 'gcs bucket':
-            lst_file_name,success_count,failed_count = create_source_node_graph_url_gcs(graph, model, gcs_project_id, gcs_bucket_name, gcs_bucket_folder, source_type,Credentials(access_token)
-            )
-        elif source_type == 'web-url':
+        if source_type == 'web-url':
             lst_file_name,success_count,failed_count = await asyncio.to_thread(create_source_node_graph_web_url,graph, model, source_url, source_type
-            )  
-        elif source_type == 'youtube':
-            lst_file_name,success_count,failed_count = await asyncio.to_thread(create_source_node_graph_url_youtube,graph, model, source_url, source_type
-            )
-        elif source_type == 'Wikipedia':
-            lst_file_name,success_count,failed_count = await asyncio.to_thread(create_source_node_graph_url_wikipedia,graph, model, wiki_query, source_type
             )
         else:
             return create_api_response('Failed',message='source_type is other than accepted source')
 
         message = f"Source Node created successfully for source type: {source_type} and source: {source}"
-        josn_obj = {'api_name':'url_scan','db_url':uri,'url_scanned_file':lst_file_name, 'source_url':source_url, 'wiki_query':wiki_query, 'logging_time': formatted_time(datetime.now(timezone.utc))}
+        josn_obj = {'api_name':'url_scan','db_url':uri,'url_scanned_file':lst_file_name, 'source_url':source_url, 'logging_time': formatted_time(datetime.now(timezone.utc))}
         logger.log_struct(josn_obj)
-        return create_api_response("Success",message=message,success_count=success_count,failed_count=failed_count,file_name=lst_file_name)    
+        return create_api_response("Success",message=message,success_count=success_count,failed_count=failed_count,file_name=lst_file_name)
     except Exception as e:
         error_message = str(e)
         message = f" Unable to create source node for source type: {source_type} and source: {source}"
@@ -133,20 +109,11 @@ async def extract_knowledge_graph_from_file(
     model=Form(None),
     database=Form(None),
     source_url=Form(None),
-    aws_access_key_id=Form(None),
-    aws_secret_access_key=Form(None),
-    wiki_query=Form(None),
-    max_sources=Form(None),
-    gcs_project_id=Form(None),
-    gcs_bucket_name=Form(None),
-    gcs_bucket_folder=Form(None),
-    gcs_blob_filename=Form(None),
     source_type=Form(None),
     file_name=Form(None),
     allowedNodes=Form(None),
     allowedRelationship=Form(None),
-    language=Form(None),
-    access_token=Form(None)
+    language=Form(None)
 ):
     """
     Calls 'extract_graph_from_file' in a new thread to create Neo4jGraph from a
@@ -182,34 +149,15 @@ async def extract_knowledge_graph_from_file(
             logging.info(f'File path:{merged_file_path}')
             result = await asyncio.to_thread(
                 extract_graph_from_file_local_file, graph, model, merged_file_path, file_name, allowedNodes, allowedRelationship, uri)
-
-        
-        elif source_type == 's3 bucket' and source_url:# 网盘的文件提取，先下载到本地临时文件夹，再进行处理，处理完成后删除临时文件
-            result = await asyncio.to_thread(
-                extract_graph_from_file_s3, graph, model, source_url, aws_access_key_id, aws_secret_access_key, allowedNodes, allowedRelationship)
-        
         elif source_type == 'web-url':
             result = await asyncio.to_thread(
                 extract_graph_from_web_page, graph, model, source_url, allowedNodes, allowedRelationship)
-
-        # elif source_type == 'youtube' and source_url:
-        #     result = await asyncio.to_thread(
-        #         extract_graph_from_file_youtube, graph, model, source_url, allowedNodes, allowedRelationship)
-
-        # elif source_type == 'Wikipedia' and wiki_query:
-        #     result = await asyncio.to_thread(
-        #         extract_graph_from_file_Wikipedia, graph, model, wiki_query, max_sources, language, allowedNodes, allowedRelationship)
-
-        elif source_type == 'gcs bucket' and gcs_bucket_name:
-            result = await asyncio.to_thread(
-                extract_graph_from_file_gcs, graph, model, gcs_project_id, gcs_bucket_name, gcs_bucket_folder, gcs_blob_filename, access_token, allowedNodes, allowedRelationship)
         else:
             return create_api_response('Failed',message='source_type is other than accepted source')
         if result is not None:
             result['db_url'] = uri
             result['api_name'] = 'extract'
             result['source_url'] = source_url
-            result['wiki_query'] = wiki_query
             result['source_type'] = source_type
             result['logging_time'] = formatted_time(datetime.now(timezone.utc))
         logger.log_struct(result)
@@ -218,17 +166,16 @@ async def extract_knowledge_graph_from_file(
         message=f"Failed To Process File:{file_name} or LLM Unable To Parse Content "
         error_message = str(e)
         graphDb_data_Access.update_exception_db(file_name,error_message)
-        gcs_file_cache = os.environ.get('GCS_FILE_CACHE')
+        gcs_file_cache = os.environ.get('GCS_FILE_CACHE', 'False')
         if source_type == 'local file':
             if gcs_file_cache == 'True':
+                logging.warning("GCS integration removed. Using local file deletion instead.")
                 folder_name = create_gcs_bucket_folder_name_hashed(uri,file_name)
-                copy_failed_file(BUCKET_UPLOAD, BUCKET_FAILED_FILE, folder_name, file_name)
-                time.sleep(5)
-                delete_file_from_gcs(BUCKET_UPLOAD,folder_name,file_name)
+                logging.info(f'Skipped GCS operations for {file_name}')
             else:
                 logging.info(f'Deleted File Path: {merged_file_path} and Deleted File Name : {file_name}')
                 delete_uploaded_local_file(merged_file_path,file_name)
-        josn_obj = {'message':message,'error_message':error_message, 'file_name': file_name,'status':'Failed','db_url':uri,'failed_count':1, 'source_type': source_type, 'source_url':source_url, 'wiki_query':wiki_query, 'logging_time': formatted_time(datetime.now(timezone.utc))}
+        josn_obj = {'message':message,'error_message':error_message, 'file_name': file_name,'status':'Failed','db_url':uri,'failed_count':1, 'source_type': source_type, 'source_url':source_url, 'logging_time': formatted_time(datetime.now(timezone.utc))}
         logger.log_struct(josn_obj)
         logging.exception(f'File Failed in extraction: {josn_obj}')
         return create_api_response('Failed', message=message + error_message[:100], error=error_message, file_name = file_name)

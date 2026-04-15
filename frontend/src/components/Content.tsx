@@ -134,8 +134,8 @@ const Content: React.FC<ContentProps> = ({
   }, [model]);
 
   const handleDropdownChange = (selectedOption: OptionType | null | void) => {
-    if (selectedOption?.value) {
-      setModel(selectedOption?.value);
+    if (selectedOption && 'value' in selectedOption) {
+      setModel((selectedOption as OptionType).value);
     }
   };
 
@@ -194,16 +194,9 @@ const Content: React.FC<ContentProps> = ({
         userCredentials as UserCredentials,
         fileItem.fileSource,
         fileItem.source_url,
-        localStorage.getItem('accesskey'),
-        localStorage.getItem('secretkey'),
         fileItem.name ?? '',
-        fileItem.gcsBucket ?? '',
-        fileItem.gcsBucketFolder ?? '',
         selectedNodes.map((l) => l.value),
-        selectedRels.map((t) => t.value),
-        fileItem.google_project_id,
-        fileItem.language,
-        fileItem.access_token
+        selectedRels.map((t) => t.value)
       );
 
       if (apiResponse?.status === 'Failed') {

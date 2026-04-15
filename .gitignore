@@ -1,1 +1,117 @@
+# Environment variables
+.env
+.env.local
+.env.production
+.env.staging
+
+# API keys and secrets
+*.key
+*.pem
+*.p12
+*.jks
+
+# Test files with exposed keys
+test_api.py
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Node modules
+frontend/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+venv/
+env/
+*.py[cod]
+*$py.class
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Logs
+*.log
+logs/
+
+# Neo4j data
+neo4j/data/
+neo4j/logs/
+
+# MinIO uploads
+minio_uploads/
+*.minio
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Documentation generated docs/
+docs/generated/
+
+# Cache
+.cache/
+__pycache__/
+.pytest_cache/
+
+# Runtime files
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+.nyc_output
+
+# Backup files
+*.bak
+*.backup
+
+# Editor specific
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS specific
+Windows/
+Thumbs.db
+desktop.ini
+
+# Embedding model files (large binaries)
 data/embedding/
+
+# 额外保护：防止任何包含 "secret" 或 "private" 字样的文件
+**/*secret*
+
+# 防止 Jupyter Notebook 输出中夹带密钥
+*.ipynb_checkpoints

@@ -12,7 +12,10 @@ services:
       - NEO4J_PASSWORD=${NEO4J_PASSWORD-password}
       - NEO4J_USERNAME=${NEO4J_USERNAME-neo4j}
       - OPENAI_API_KEY=${OPENAI_API_KEY-}
-      - DIFFBOT_API_KEY=${DIFFBOT_API_KEY-}
+      - ZHIPUAI_API_KEY=${ZHIPUAI_API_KEY-}
+      - V_ZHIPUAI_API_KEY=${V_ZHIPUAI_API_KEY-}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY-}
+      - QWEN_API_KEY=${QWEN_API_KEY-}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL-all-MiniLM-L6-v2}
       - LANGCHAIN_ENDPOINT=${LANGCHAIN_ENDPOINT-}
       - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2-}
@@ -26,13 +29,10 @@ services:
       - NUMBER_OF_CHUNKS_TO_COMBINE=${NUMBER_OF_CHUNKS_TO_COMBINE-6}
       - ENTITY_EMBEDDING=${ENTITY_EMBEDDING-False}
       - GCS_FILE_CACHE=${GCS_FILE_CACHE-False}
-#      - LLM_MODEL_CONFIG_anthropic_claude_35_sonnet=${LLM_MODEL_CONFIG_anthropic_claude_35_sonnet-}
-#      - LLM_MODEL_CONFIG_fireworks_llama_v3_70b=${LLM_MODEL_CONFIG_fireworks_llama_v3_70b-}
-#      - LLM_MODEL_CONFIG_azure_ai_gpt_4o=${LLM_MODEL_CONFIG_azure_ai_gpt_4o-}
-#      - LLM_MODEL_CONFIG_azure_ai_gpt_35=${LLM_MODEL_CONFIG_azure_ai_gpt_35-}
-#      - LLM_MODEL_CONFIG_groq_llama3_70b=${LLM_MODEL_CONFIG_groq_llama3_70b-}
-#      - LLM_MODEL_CONFIG_bedrock_claude_3_5_sonnet=${LLM_MODEL_CONFIG_bedrock_claude_3_5_sonnet-}
-#     - LLM_MODEL_CONFIG_fireworks_qwen_72b=${LLM_MODEL_CONFIG_fireworks_qwen_72b-}
+      - LLM_MODEL_CONFIG_glm=${LLM_MODEL_CONFIG_glm-}
+      - LLM_MODEL_CONFIG_v-GLM=${LLM_MODEL_CONFIG_v-GLM-}
+      - LLM_MODEL_CONFIG_深度求索=${LLM_MODEL_CONFIG_深度求索-}
+      - LLM_MODEL_CONFIG_通义千问=${LLM_MODEL_CONFIG_通义千问-}
       - LLM_MODEL_CONFIG_ollama_llama3=${LLM_MODEL_CONFIG_ollama_llama3-}
     container_name: backend
     extra_hosts:
@@ -50,8 +50,8 @@ services:
       dockerfile: Dockerfile
       args:
         - BACKEND_API_URL=${BACKEND_API_URL-http://localhost:8000}
-        - REACT_APP_SOURCES=${REACT_APP_SOURCES-local,youtube,wiki,s3}
-        - LLM_MODELS=${LLM_MODELS-diffbot,openai-gpt-3.5,openai-gpt-4o}
+        - REACT_APP_SOURCES=${REACT_APP_SOURCES-local,web}
+        - LLM_MODELS=${LLM_MODELS-GLM,深度求索,通义千问,Ollama,v-GLM}
         - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID-""}
         - BLOOM_URL=${BLOOM_URL-https://workspace-preview.neo4j.io/workspace/explore?connectURL={CONNECT_URL}&search=Show+me+a+graph&featureGenAISuggestions=true&featureGenAISuggestionsInternal=true}
         - TIME_PER_CHUNK=${TIME_PER_CHUNK-4}

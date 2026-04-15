@@ -31,7 +31,7 @@ export const docChunkEntities = `+[chunks]
 export const APP_SOURCES =
   process.env.REACT_APP_SOURCES !== ''
     ? process.env.REACT_APP_SOURCES?.split(',')
-    : ['gcs', 's3', 'local', 'wiki', 'youtube', 'web'];
+    : ['local', 'web'];
 export const llms =
   process.env?.LLM_MODELS?.trim() != ''
     ? process.env.LLM_MODELS?.split(',')
@@ -131,9 +131,6 @@ export const buttonCaptions = {
   deleteFiles: 'Delete Files',
   generateGraph: 'Generate Graph',
   dropzoneSpan: 'Documents, Images, Unstructured text',
-  youtube: 'Youtube',
-  gcs: 'GCS',
-  amazon: 'Amazon S3',
   noLables: 'No Labels Found in the Database',
   dropYourCreds: 'Drop your neo4j credentials file here',
   analyze: 'Analyze text to extract graph schema',

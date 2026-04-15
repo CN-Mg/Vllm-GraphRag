@@ -14,16 +14,11 @@ export interface CustomFileBase extends Partial<globalThis.File> {
   model: string;
   fileSource: string;
   source_url?: string;
-  wiki_query?: string;
-  gcsBucket?: string;
-  gcsBucketFolder?: string;
   errorMessage?: string;
   uploadprogess?: number;
   processingStatus?: boolean;
-  google_project_id?: string;
   language?: string;
   processingProgress?: number;
-  access_token?: string;
   checked?: boolean;
 }
 export interface CustomFile extends CustomFileBase {
@@ -52,20 +47,12 @@ export type ExtractParams = {
   file?: File;
   model: string;
   source_url?: string;
-  aws_access_key_id?: string | null;
-  aws_secret_access_key?: string | null;
   max_sources?: number;
-  wiki_query?: string;
-  gcs_bucket_name?: string;
-  gcs_bucket_folder?: string;
-  gcs_blob_filename?: string;
   source_type?: string;
   file_name?: string;
   allowedNodes?: string[];
   allowedRelationship?: string[];
-  gcs_project_id?: string;
   language?: string;
-  access_token?: string;
 } & { [key: string]: any };
 
 export type UploadParams = {
@@ -92,15 +79,6 @@ export interface DataComponentProps {
   openModal: () => void;
 }
 
-export interface S3ModalProps {
-  hideModal: () => void;
-  open: boolean;
-}
-export interface GCSModalProps {
-  hideModal: () => void;
-  open: boolean;
-  openGCSModal: () => void;
-}
 export interface ConnectionModalProps {
   open: boolean;
   setOpenConnection: Dispatch<SetStateAction<boolean>>;
@@ -117,18 +95,12 @@ export interface SourceNode {
   model: string;
   status: string;
   url?: string;
-  awsAccessKeyId?: string;
   fileSource: string;
-  gcsBucket?: string;
-  gcsBucketFolder?: string;
   errorMessage?: string;
   uploadprogress?: number;
-  gcsProjectId?: string;
   language?: string;
   processed_chunk?: number;
   total_chunks?: number;
-  // total_pages?: number;
-  access_token?: string;
 }
 
 export interface SideNavProps {
@@ -244,11 +216,6 @@ export type ChatbotProps = {
   clear?: boolean;
   isFullScreen?: boolean;
 };
-export interface WikipediaModalTypes {
-  hideModal: () => void;
-  open: boolean;
-}
-
 export interface GraphViewModalProps {
   open: boolean;
   inspectedName?: string;
@@ -275,10 +242,7 @@ export interface fileName {
   fileName: string;
   fileSize: number;
   url: string;
-  gcsBucketName?: string;
-  gcsBucketFolder?: string;
   status?: string;
-  gcsProjectId: string;
   language?: string;
 }
 // 定义 API 响应类型，约束后端返回数据的结构

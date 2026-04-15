@@ -5,7 +5,6 @@ from langchain_openai import ChatOpenAI, AzureChatOpenAI
 from langchain_google_vertexai import ChatVertexAI
 from langchain_groq import ChatGroq
 from langchain_google_vertexai import HarmBlockThreshold, HarmCategory
-from langchain_experimental.graph_transformers.diffbot import DiffbotGraphTransformer
 import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor
 # from langchain_experimental.graph_transformers import LLMGraphTransformer

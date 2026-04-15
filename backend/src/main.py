@@ -10,573 +10,426 @@ from src.graphDB_dataAccess import graphDBdataAccess
 from src.document_sources.local_file import get_documents_from_file_by_path
 from src.entities.source_node import sourceNode
 from src.generate_graphDocuments_from_llm import generate_graphDocuments
-from src.document_sources.gcs_bucket import *
-from src.document_sources.s3_bucket import *
-from src.document_sources.wikipedia import *
-from src.document_sources.youtube import *
+from src.document_sources.web_pages import *
 from src.shared.common_fn import *
 from src.make_relationships import *
-from src.document_sources.web_pages import *
 import re
-from langchain_community.document_loaders import WikipediaLoader, WebBaseLoader
+from langchain_community.document_loaders import WebBaseLoader
 import warnings
-from pytube import YouTube
 import sys
 import shutil
 import urllib.parse
-import json
+import os
+from pathlib import Path
 
 warnings.filterwarnings("ignore")
 load_dotenv()
 logging.basicConfig(format='%(asctime)s - %(message)s',level='INFO')
 
-def create_source_node_graph_url_s3(graph, model, source_url, aws_access_key_id, aws_secret_access_key, source_type):
-    
-    lst_file_name = []
-    files_info = get_s3_files_info(source_url,aws_access_key_id=aws_access_key_id,aws_secret_access_key=aws_secret_access_key)
-    if len(files_info)==0:
-      raise Exception('No pdf files found.')
-    logging.info(f'files info : {files_info}')
-    success_count=0
-    failed_count=0
-    
-    for file_info in files_info:
-        file_name=file_info['file_key'] 
-        obj_source_node = sourceNode()
-        obj_source_node.file_name = file_name.split('/')[-1]
-        obj_source_node.file_type = 'pdf'
-        obj_source_node.file_size = file_info['file_size_bytes']
-        obj_source_node.file_source = source_type
-        obj_source_node.total_pages = 'N/A'
-        obj_source_node.model = model
-        obj_source_node.url = str(source_url+file_name)
-        obj_source_node.awsAccessKeyId = aws_access_key_id
-        obj_source_node.created_at = datetime.now()
-        try:
-          graphDb_data_Access = graphDBdataAccess(graph)
-          graphDb_data_Access.create_source_node(obj_source_node)
-          success_count+=1
-          lst_file_name.append({'fileName':obj_source_node.file_name,'fileSize':obj_source_node.file_size,'url':obj_source_node.url,'status':'Success'})
+def upload_file(graph, model, file, chunkNumber, totalChunks, originalname, uri, CHUNK_DIR, MERGED_DIR):
+    """
+    处理大文件的分块上传
 
-        except Exception as e:
-          failed_count+=1
-          # error_message = str(e)
-          lst_file_name.append({'fileName':obj_source_node.file_name,'fileSize':obj_source_node.file_size,'url':obj_source_node.url,'status':'Failed'})
-    return lst_file_name,success_count,failed_count
+    Args:
+        graph: Neo4j图数据库连接
+        model: 模型名称
+        file: 上传的文件块对象
+        chunkNumber: 当前块编号（从1开始）
+        totalChunks: 总块数
+        originalname: 原始文件名
+        uri: 数据库URI
+        CHUNK_DIR: 临时存储分块的目录
+        MERGED_DIR: 合并后文件的存储目录
 
-def create_source_node_graph_url_gcs(graph, model, gcs_project_id, gcs_bucket_name, gcs_bucket_folder, source_type, credentials):
+    Returns:
+        str: 状态消息
+    """
+    try:
+        # 确保目录存在
+        os.makedirs(CHUNK_DIR, exist_ok=True)
+        os.makedirs(MERGED_DIR, exist_ok=True)
 
-    success_count=0
-    failed_count=0
-    lst_file_name = []
-    
-    lst_file_metadata= get_gcs_bucket_files_info(gcs_project_id, gcs_bucket_name, gcs_bucket_folder, credentials)
-    for file_metadata in lst_file_metadata :
-      obj_source_node = sourceNode()
-      obj_source_node.file_name = file_metadata['fileName']
-      obj_source_node.file_size = file_metadata['fileSize']
-      obj_source_node.url = file_metadata['url']
-      obj_source_node.file_source = source_type
-      obj_source_node.total_pages = 'N/A'
-      obj_source_node.model = model
-      obj_source_node.file_type = 'pdf'
-      obj_source_node.gcsBucket = gcs_bucket_name
-      obj_source_node.gcsBucketFolder = file_metadata['gcsBucketFolder']
-      obj_source_node.gcsProjectId = file_metadata['gcsProjectId']
-      obj_source_node.created_at = datetime.now()
-      obj_source_node.access_token = credentials.token
-    
-      try:
-          graphDb_data_Access = graphDBdataAccess(graph)
-          graphDb_data_Access.create_source_node(obj_source_node)
-          success_count+=1
-          lst_file_name.append({'fileName':obj_source_node.file_name,'fileSize':obj_source_node.file_size,'url':obj_source_node.url,'status':'Success', 
-                                'gcsBucketName': gcs_bucket_name, 'gcsBucketFolder':obj_source_node.gcsBucketFolder, 'gcsProjectId':obj_source_node.gcsProjectId})
-      except Exception as e:
-        failed_count+=1
-        lst_file_name.append({'fileName':obj_source_node.file_name,'fileSize':obj_source_node.file_size,'url':obj_source_node.url,'status':'Failed', 
-                              'gcsBucketName': gcs_bucket_name, 'gcsBucketFolder':obj_source_node.gcsBucketFolder, 'gcsProjectId':obj_source_node.gcsProjectId})
-    return lst_file_name,success_count,failed_count
+        # 为当前文件创建唯一的子目录（使用原始文件名）
+        chunk_subdir = os.path.join(CHUNK_DIR, originalname)
+        os.makedirs(chunk_subdir, exist_ok=True)
+
+        # 保存当前块
+        chunk_filename = f"chunk_{chunkNumber}_{totalChunks}"
+        chunk_path = os.path.join(chunk_subdir, chunk_filename)
+
+        with open(chunk_path, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+            f.flush()
+
+        logging.info(f"Saved chunk {chunkNumber}/{totalChunks} for {originalname}")
+
+        # 检查是否所有块都已接收
+        chunk_files = sorted([f for f in os.listdir(chunk_subdir) if f.startswith("chunk_")])
+        if len(chunk_files) == int(totalChunks):
+            # 所有块已接收，开始合并
+            logging.info(f"All chunks received for {originalname}, merging...")
+
+            merged_file_path = os.path.join(MERGED_DIR, originalname)
+
+            with open(merged_file_path, "wb") as merged_file:
+                for chunk_file in chunk_files:
+                    chunk_path = os.path.join(chunk_subdir, chunk_file)
+                    with open(chunk_path, "rb") as chunk:
+                        shutil.copyfileobj(chunk, merged_file)
+
+            logging.info(f"File merged successfully: {merged_file_path}")
+
+            # 清理分块目录
+            shutil.rmtree(chunk_subdir)
+
+            # 创建源节点
+            obj_source_node = sourceNode()
+            obj_source_node.file_name = originalname
+            obj_source_node.file_source = 'local file'
+            obj_source_node.file_type = originalname.split('.')[-1]
+            obj_source_node.model = model
+            obj_source_node.created_at = datetime.now()
+
+            # 获取文件大小
+            file_size = os.path.getsize(merged_file_path)
+            obj_source_node.file_size = file_size
+
+            graphDb_data_Access = graphDBdataAccess(graph)
+            graphDb_data_Access.create_source_node(obj_source_node)
+
+            return f"All chunks received and merged. Source node created for {originalname}"
+        else:
+            return f"Chunk {chunkNumber}/{totalChunks} received. Waiting for remaining chunks."
+
+    except Exception as e:
+        logging.error(f"Error in upload_file: {e}")
+        raise
+
 
 def create_source_node_graph_web_url(graph, model, source_url, source_type):
-    success_count=0
-    failed_count=0
+    """Create source node for web pages"""
+    success_count = 0
+    failed_count = 0
     lst_file_name = []
-    pages = WebBaseLoader(source_url, verify_ssl=False).load()
-    if pages==None or len(pages)==0:
-      failed_count+=1
-      message = f"Unable to read data for given url : {source_url}"
-      raise Exception(message)
-    obj_source_node = sourceNode()
-    obj_source_node.file_type = 'text'
-    obj_source_node.file_source = source_type
-    obj_source_node.model = model
-    obj_source_node.total_pages = 1
-    obj_source_node.url = urllib.parse.unquote(source_url)
-    obj_source_node.created_at = datetime.now()
-    obj_source_node.file_name = pages[0].metadata['title']
-    obj_source_node.language = pages[0].metadata['language'] 
-    obj_source_node.file_size = sys.getsizeof(pages[0].page_content)
-    
-    graphDb_data_Access = graphDBdataAccess(graph)
-    graphDb_data_Access.create_source_node(obj_source_node)
-    lst_file_name.append({'fileName':obj_source_node.file_name,'fileSize':obj_source_node.file_size,'url':obj_source_node.url,'status':'Success'})
-    success_count+=1
-    return lst_file_name,success_count,failed_count
-  
-def create_source_node_graph_url_youtube(graph, model, source_url, source_type):
-    
-    youtube_url, language = check_url_source(source_type=source_type, yt_url=source_url)
-    success_count=0
-    failed_count=0
-    lst_file_name = []
-    obj_source_node = sourceNode()
-    obj_source_node.file_type = 'text'
-    obj_source_node.file_source = source_type
-    obj_source_node.model = model
-    obj_source_node.total_pages = 1
-    obj_source_node.url = youtube_url
-    obj_source_node.created_at = datetime.now()
-    match = re.search(r'(?:v=)([0-9A-Za-z_-]{11})\s*',obj_source_node.url)
-    logging.info(f"match value: {match}")
-    obj_source_node.file_name = YouTube(obj_source_node.url).title
-    transcript= get_youtube_combined_transcript(match.group(1))
-    if transcript==None or len(transcript)==0:
-      message = f"Youtube transcript is not available for : {obj_source_node.file_name}"
-      raise Exception(message)
-    else:  
-      obj_source_node.file_size = sys.getsizeof(transcript)
-    
-    graphDb_data_Access = graphDBdataAccess(graph)
-    graphDb_data_Access.create_source_node(obj_source_node)
-    lst_file_name.append({'fileName':obj_source_node.file_name,'fileSize':obj_source_node.file_size,'url':obj_source_node.url,'status':'Success'})
-    success_count+=1
-    return lst_file_name,success_count,failed_count
 
-def create_source_node_graph_url_wikipedia(graph, model, wiki_query, source_type):
-  
-    success_count=0
-    failed_count=0
-    lst_file_name=[]
-    #queries_list =  wiki_query.split(',')
-    wiki_query_id, language = check_url_source(source_type=source_type, wiki_query=wiki_query)
-    logging.info(f"Creating source node for {wiki_query_id.strip()}, {language}")
-    pages = WikipediaLoader(query=wiki_query_id.strip(), lang=language, load_max_docs=1, load_all_available_meta=True).load()
-    if pages==None or len(pages)==0:
-      failed_count+=1
-      message = f"Unable to read data for given Wikipedia url : {wiki_query}"
-      raise Exception(message)
-    else:
-      obj_source_node = sourceNode()
-      obj_source_node.file_name = wiki_query_id.strip()
-      obj_source_node.file_type = 'text'
-      obj_source_node.file_source = source_type
-      obj_source_node.file_size = sys.getsizeof(pages[0].page_content)
-      obj_source_node.total_pages = len(pages)
-      obj_source_node.model = model
-      obj_source_node.url = urllib.parse.unquote(pages[0].metadata['source'])
-      obj_source_node.created_at = datetime.now()
-      obj_source_node.language = language
-      graphDb_data_Access = graphDBdataAccess(graph)
-      graphDb_data_Access.create_source_node(obj_source_node)
-      success_count+=1
-      lst_file_name.append({'fileName':obj_source_node.file_name,'fileSize':obj_source_node.file_size,'url':obj_source_node.url, 'language':obj_source_node.language, 'status':'Success'})
-    return lst_file_name,success_count,failed_count
-    
-def extract_graph_from_file_local_file(graph, model, merged_file_path, fileName, allowedNodes, allowedRelationship, uri):
+    try:
+        pages = WebBaseLoader(source_url, verify_ssl=False).load()
+        if pages is None or len(pages) == 0:
+            failed_count += 1
+            message = f"Unable to read data for given url : {source_url}"
+            raise Exception(message)
 
-  logging.info(f'Process file name :{fileName}')
-  gcs_file_cache = os.environ.get('GCS_FILE_CACHE')
-  all_image_info_list = []
+        obj_source_node = sourceNode()
+        obj_source_node.file_type = 'text'
+        obj_source_node.file_source = source_type
+        obj_source_node.model = model
+        obj_source_node.total_pages = 1
+        obj_source_node.url = urllib.parse.unquote(source_url)
+        obj_source_node.created_at = datetime.now()
+        obj_source_node.file_name = pages[0].metadata.get('title', source_url.split('/')[-1])
+        obj_source_node.language = pages[0].metadata.get('language', 'en')
+        obj_source_node.file_size = sys.getsizeof(pages[0].page_content)
 
-  if gcs_file_cache == 'True':
-    folder_name = create_gcs_bucket_folder_name_hashed(uri, fileName)
-    file_name, pages = get_documents_from_gcs(PROJECT_ID, BUCKET_UPLOAD, folder_name, fileName)
-    # GCS 方式暂不支持图片提取
-  else:
-    file_name, pages, file_extension, all_image_info_list = get_documents_from_file_by_path(merged_file_path, fileName)
+        graphDb_data_Access = graphDBdataAccess(graph)
+        graphDb_data_Access.create_source_node(obj_source_node)
+        lst_file_name.append({
+            'fileName': obj_source_node.file_name,
+            'fileSize': obj_source_node.file_size,
+            'url': obj_source_node.url,
+            'status': 'Success'
+        })
+        success_count += 1
 
-  if pages==None or len(pages)==0:
-    raise Exception(f'File content is not available for file : {file_name}')
+    except Exception as e:
+        logging.error(f"Error processing web URL {source_url}: {e}")
+        failed_count += 1
+        lst_file_name.append({
+            'fileName': source_url.split('/')[-1],
+            'fileSize': 0,
+            'url': source_url,
+            'status': 'Failed'
+        })
 
-  return processing_source(graph, model, file_name, pages, allowedNodes, allowedRelationship, True, merged_file_path, uri, all_image_info_list)
-
-def extract_graph_from_file_s3(graph, model, source_url, aws_access_key_id, aws_secret_access_key, allowedNodes, allowedRelationship):
-
-  if(aws_access_key_id==None or aws_secret_access_key==None):
-    raise Exception('Please provide AWS access and secret keys')
-  else:
-    logging.info("Insert in S3 Block")
-    file_name, pages = get_documents_from_s3(source_url, aws_access_key_id, aws_secret_access_key)
-
-  if pages==None or len(pages)==0:
-    raise Exception(f'File content is not available for file : {file_name}')
-
-  return processing_source(graph, model, file_name, pages, allowedNodes, allowedRelationship)
+    return lst_file_name, success_count, failed_count
 
 def extract_graph_from_web_page(graph, model, source_url, allowedNodes, allowedRelationship):
+    """Extract graph from web page"""
+    try:
+        file_name, pages = get_documents_from_web_page(source_url)
 
-  file_name, pages = get_documents_from_web_page(source_url)
+        if pages is None or len(pages) == 0:
+            raise Exception(f'Content is not available for given URL : {file_name}')
 
-  if pages==None or len(pages)==0:
-    raise Exception(f'Content is not available for given URL : {file_name}')
+        return processing_source(graph, model, file_name, pages, allowedNodes, allowedRelationship)
 
-  return processing_source(graph, model, file_name, pages, allowedNodes, allowedRelationship)
+    except Exception as e:
+        logging.error(f"Error extracting graph from web page {source_url}: {e}")
+        raise
 
-def extract_graph_from_file_youtube(graph, model, source_url, allowedNodes, allowedRelationship):
-  
-  file_name, pages = get_documents_from_youtube(source_url)
+def extract_graph_from_file_local_file(graph, model, merged_file_path, fileName, allowedNodes, allowedRelationship, uri):
+    """Extract graph from local file"""
+    logging.info(f'Process file name: {fileName}')
+    all_image_info_list = []
 
-  if pages==None or len(pages)==0:
-    raise Exception(f'Youtube transcript is not available for file : {file_name}')
+    try:
+        file_name, pages, file_extension, all_image_info_list = get_documents_from_file_by_path(merged_file_path, fileName)
 
-  return processing_source(graph, model, file_name, pages, allowedNodes, allowedRelationship)
+        if pages is None or len(pages) == 0:
+            raise Exception(f'File content is not available for file: {file_name}')
 
-def extract_graph_from_file_Wikipedia(graph, model, wiki_query, max_sources, language, allowedNodes, allowedRelationship):
+        return processing_source(graph, model, file_name, pages, allowedNodes, allowedRelationship, True, merged_file_path, uri, all_image_info_list)
 
-  file_name, pages = get_documents_from_Wikipedia(wiki_query, language)
-  if pages==None or len(pages)==0:
-    raise Exception(f'Wikipedia page is not available for file : {file_name}')
+    except Exception as e:
+        logging.error(f"Error processing local file {fileName}: {e}")
+        raise
 
-  return processing_source(graph, model, file_name, pages, allowedNodes, allowedRelationship)
+def processing_source(graph, model, file_name, pages, allowedNodes, allowedRelationship,
+                     is_uploaded_from_local=None, merged_file_path=None, uri=None,
+                     all_image_info_list=None):
+    """
+    Process source document and extract knowledge graph
+    """
+    start_time = datetime.now()
+    graphDb_data_Access = graphDBdataAccess(graph)
 
-def extract_graph_from_file_gcs(graph, model, gcs_project_id, gcs_bucket_name, gcs_bucket_folder, gcs_blob_filename, access_token, allowedNodes, allowedRelationship):
+    # Check current status
+    result = graphDb_data_Access.get_current_status_document_node(file_name)
 
-  file_name, pages = get_documents_from_gcs(gcs_project_id, gcs_bucket_name, gcs_bucket_folder, gcs_blob_filename, access_token)
-  if pages==None or len(pages)==0:
-    raise Exception(f'File content is not available for file : {file_name}')
+    # Clean text content
+    bad_chars = ['"', "\n", "'"]
+    for i in range(len(pages)):
+        text = pages[i].page_content
+        for j in bad_chars:
+            if j == '\n':
+                text = text.replace(j, ' ')
+            else:
+                text = text.replace(j, '')
+        pages[i] = Document(page_content=str(text), metadata=pages[i].metadata)
 
-  return processing_source(graph, model, file_name, pages, allowedNodes, allowedRelationship)
+    # Split file into chunks
+    create_chunks_obj = CreateChunksofDocument(pages, graph)
+    chunks = create_chunks_obj.split_file_into_chunks()
 
-def processing_source(graph, model, file_name, pages, allowedNodes, allowedRelationship, is_uploaded_from_local=None, merged_file_path=None, uri=None, all_image_info_list=None):
-  """
-   Extracts a Neo4jGraph from a PDF file based on the model.
-   
-   Args:
-   	 uri: URI of the graph to extract
-     db_name : db_name is database name to connect graph db
-   	 userName: Username to use for graph creation ( if None will use username from config file )
-   	 password: Password to use for graph creation ( if None will use password from config file )
-   	 file: File object containing the PDF file to be used
-   	 model: Type of model to use ('Diffbot'or'OpenAI GPT')
-   
-   Returns: 
-   	 Json response to API with fileName, nodeCount, relationshipCount, processingTime, 
-     status and model as attributes.
-  """
-  start_time = datetime.now()
-  graphDb_data_Access = graphDBdataAccess(graph)
+    # Create relationships between chunks
+    chunkId_chunkDoc_list = create_relation_between_chunks(graph, file_name, chunks)
 
-  result = graphDb_data_Access.get_current_status_document_node(file_name)
-  logging.info("Break down file into chunks")
-  bad_chars = ['"', "\n", "'"] # 去除掉换行符和引号，避免后续处理文本时出现问题
-  for i in range(0,len(pages)):
-    text = pages[i].page_content
-    for j in bad_chars:
-      if j == '\n':
-        text = text.replace(j, ' ')
-      else:
-        text = text.replace(j, '')
-    pages[i]=Document(page_content=str(text), metadata=pages[i].metadata)
-  # 文档分块默认chunk size=200，overlap=20
-  create_chunks_obj = CreateChunksofDocument(pages, graph)
-  chunks = create_chunks_obj.split_file_into_chunks()
+    # Create image nodes if available
+    if all_image_info_list and len(all_image_info_list) > 0:
+        create_image_nodes_and_relationships(graph, file_name, all_image_info_list)
 
-  # 建立分块间关系（PART_OF/FIRST_CHUNK/NEXT_CHUNK）
-  chunkId_chunkDoc_list = create_relation_between_chunks(graph,file_name,chunks)
+        # Create relationships between chunks and images
+        chunks_with_images = []
+        for chunk_info in chunkId_chunkDoc_list:
+            chunk_id = chunk_info['chunk_id']
+            chunk_doc = chunk_info['chunk_doc']
 
-  # 创建图片节点（如果有）
-  if all_image_info_list and len(all_image_info_list) > 0:
-    create_image_nodes_and_relationships(graph, file_name, all_image_info_list)
+            if 'images' in chunk_doc.metadata and chunk_doc.metadata['images']:
+                chunks_with_images.append({
+                    'chunk_id': chunk_id,
+                    'images': chunk_doc.metadata['images']
+                })
 
-    # 收集 chunk 与图片的关联信息
-    chunks_with_images = []
-    for chunk_info in chunkId_chunkDoc_list:
-        chunk_id = chunk_info['chunk_id']
-        chunk_doc = chunk_info['chunk_doc']
+        if chunks_with_images:
+            create_chunk_image_relationships(graph, file_name, chunks_with_images)
 
-        # 检查 chunk 的 metadata 中是否有图片信息
-        if 'images' in chunk_doc.metadata and chunk_doc.metadata['images']:
-            chunks_with_images.append({
-                'chunk_id': chunk_id,
-                'images': chunk_doc.metadata['images']
-            })
+    # Process if not already in Processing status
+    if result[0]['Status'] != 'Processing':
+        # Update source node status
+        obj_source_node = sourceNode()
+        status = "Processing"
+        obj_source_node.file_name = file_name
+        obj_source_node.status = status
+        obj_source_node.total_chunks = len(chunks)
+        obj_source_node.total_pages = len(pages)
+        obj_source_node.model = model
+        obj_source_node.created_at = datetime.now()
 
-    # 创建 chunk 与 image 的关系
-    if chunks_with_images:
-        create_chunk_image_relationships(graph, file_name, chunks_with_images)
+        graphDb_data_Access.update_source_node(obj_source_node)
 
-  if result[0]['Status'] != 'Processing':      
-    obj_source_node = sourceNode()
-    status = "Processing"
-    obj_source_node.file_name = file_name
-    obj_source_node.status = status
-    obj_source_node.total_chunks = len(chunks)
-    obj_source_node.total_pages = len(pages)
-    obj_source_node.model = model
-    logging.info(file_name)
-    logging.info(obj_source_node)
-    graphDb_data_Access.update_source_node(obj_source_node)
-    
-    logging.info('Update the status as Processing')
-    update_graph_chunk_processed = int(os.environ.get('UPDATE_GRAPH_CHUNKS_PROCESSED'))
-    # selected_chunks = []
-    is_cancelled_status = False
-    job_status = "Completed"
-    node_count = 0
-    rel_count = 0
-    for i in range(0, len(chunkId_chunkDoc_list), update_graph_chunk_processed):
-      select_chunks_upto = i+update_graph_chunk_processed
-      logging.info(f'Selected Chunks upto: {select_chunks_upto}')
-      if len(chunkId_chunkDoc_list) <= select_chunks_upto:
-         select_chunks_upto = len(chunkId_chunkDoc_list)
-      selected_chunks = chunkId_chunkDoc_list[i:select_chunks_upto]
-      result = graphDb_data_Access.get_current_status_document_node(file_name)
-      is_cancelled_status = result[0]['is_cancelled']
-      logging.info(f"Value of is_cancelled : {result[0]['is_cancelled']}")
-      if bool(is_cancelled_status) == True:
-         job_status = "Cancelled"
-         logging.info('Exit from running loop of processing file')
-         exit
-      else:
-        node_count,rel_count = processing_chunks(selected_chunks,graph,file_name,model,allowedNodes,allowedRelationship,node_count, rel_count)
+        # Process chunks in batches
+        update_graph_chunk_processed = int(os.environ.get('UPDATE_GRAPH_CHUNKS_PROCESSED', 20))
+        is_cancelled_status = False
+        job_status = "Completed"
+        node_count = 0
+        rel_count = 0
+
+        for i in range(0, len(chunkId_chunkDoc_list), update_graph_chunk_processed):
+            select_chunks_upto = min(i + update_graph_chunk_processed, len(chunkId_chunkDoc_list))
+            logging.info(f'Selected Chunks up to: {select_chunks_upto}')
+
+            result = graphDb_data_Access.get_current_status_document_node(file_name)
+            is_cancelled_status = result[0]['is_cancelled']
+
+            if bool(is_cancelled_status):
+                job_status = "Cancelled"
+                logging.info('Job cancelled by user')
+                break
+            else:
+                node_count, rel_count = processing_chunks(
+                    chunkId_chunkDoc_list[i:select_chunks_upto],
+                    graph, file_name, model, allowedNodes, allowedRelationship,
+                    node_count, rel_count
+                )
+
+                # Update progress
+                end_time = datetime.now()
+                processed_time = end_time - start_time
+
+                obj_source_node = sourceNode()
+                obj_source_node.file_name = file_name
+                obj_source_node.updated_at = end_time
+                obj_source_node.processing_time = processed_time
+                obj_source_node.node_count = node_count
+                obj_source_node.processed_chunk = select_chunks_upto
+                obj_source_node.relationship_count = rel_count
+                graphDb_data_Access.update_source_node(obj_source_node)
+
+        # Final status update
+        result = graphDb_data_Access.get_current_status_document_node(file_name)
+        is_cancelled_status = result[0]['is_cancelled']
+        if bool(is_cancelled_status):
+            job_status = 'Cancelled'
+            logging.info('Job cancelled at the end of extraction')
+        else:
+            logging.info(f'Job Status at the end: {job_status}')
+
         end_time = datetime.now()
         processed_time = end_time - start_time
-        
+
+        # Final update
         obj_source_node = sourceNode()
         obj_source_node.file_name = file_name
-        obj_source_node.updated_at = end_time
+        obj_source_node.status = job_status
         obj_source_node.processing_time = processed_time
-        obj_source_node.node_count = node_count
-        obj_source_node.processed_chunk = select_chunks_upto
-        obj_source_node.relationship_count = rel_count
         graphDb_data_Access.update_source_node(obj_source_node)
-    
-    result = graphDb_data_Access.get_current_status_document_node(file_name)
-    is_cancelled_status = result[0]['is_cancelled']
-    if bool(is_cancelled_status) == True:
-       logging.info(f'Is_cancelled True at the end extraction')
-       job_status = 'Cancelled'
-    logging.info(f'Job Status at the end : {job_status}')
-    end_time = datetime.now()
-    processed_time = end_time - start_time
-    obj_source_node = sourceNode()
-    obj_source_node.file_name = file_name
-    obj_source_node.status = job_status
-    obj_source_node.processing_time = processed_time
 
-    graphDb_data_Access.update_source_node(obj_source_node)
-    logging.info('Updated the nodeCount and relCount properties in Document node')
-    logging.info(f'file:{file_name} extraction has been completed')
+        logging.info('Updated the nodeCount and relCount properties in Document node')
+        logging.info(f'File: {file_name} extraction has been completed')
 
+        # Clean up local files if uploaded from local
+        if is_uploaded_from_local:
+            delete_uploaded_local_file(merged_file_path, file_name)
 
-    # merged_file_path have value only when file uploaded from local
-    
-    if is_uploaded_from_local:
-      gcs_file_cache = os.environ.get('GCS_FILE_CACHE')
-      if gcs_file_cache == 'True':
-        folder_name = create_gcs_bucket_folder_name_hashed(uri, file_name)
-        delete_file_from_gcs(BUCKET_UPLOAD,folder_name,file_name)
-      else:
-        delete_uploaded_local_file(merged_file_path, file_name)  
-      
-    return {
-        "fileName": file_name,
-        "nodeCount": node_count,
-        "relationshipCount": rel_count,
-        "processingTime": round(processed_time.total_seconds(),2),
-        "status" : job_status,
-        "model" : model,
-        "success_count" : 1
-    }
-  else:
-     logging.info('File does not process because it\'s already in Processing status')
+        return {
+            "fileName": file_name,
+            "nodeCount": node_count,
+            "relationshipCount": rel_count,
+            "processingTime": round(processed_time.total_seconds(), 2),
+            "status": job_status,
+            "model": model,
+            "success_count": 1
+        }
+    else:
+        logging.info('File does not process because it\'s already in Processing status')
+        return None
 
-def processing_chunks(chunkId_chunkDoc_list,graph,file_name,model,allowedNodes,allowedRelationship, node_count, rel_count):
-  #create vector index and update chunk node with embedding
-  update_embedding_create_vector_index( graph, chunkId_chunkDoc_list, file_name)
-  logging.info("Get graph document list from models")
-  graph_documents =  generate_graphDocuments(model, graph, chunkId_chunkDoc_list, allowedNodes, allowedRelationship)
-  save_graphDocuments_in_neo4j(graph, graph_documents)
-  chunks_and_graphDocuments_list = get_chunk_and_graphDocument(graph_documents, chunkId_chunkDoc_list)
-  merge_relationship_between_chunk_and_entites(graph, chunks_and_graphDocuments_list)
-  # return graph_documents
-  
-  distinct_nodes = set()
-  relations = []
-  for graph_document in graph_documents:
-    #get distinct nodes
-    for node in graph_document.nodes:
-          node_id = node.id
-          node_type= node.type
-          if (node_id, node_type) not in distinct_nodes:
-            distinct_nodes.add((node_id, node_type))
-  #get all relations
-  for relation in graph_document.relationships:
-        relations.append(relation.type)
+def processing_chunks(chunkId_chunkDoc_list, graph, file_name, model, allowedNodes, allowedRelationship,
+                      node_count, rel_count):
+    """Process chunks and generate graph documents"""
+    # Update embedding and create vector index
+    update_embedding_create_vector_index(graph, chunkId_chunkDoc_list, file_name)
 
-  node_count += len(distinct_nodes)
-  rel_count += len(relations)
-  print(f'node count internal func:{node_count}')
-  print(f'relation count internal func:{rel_count}')
-  return node_count,rel_count
+    logging.info("Get graph document list from models")
+    graph_documents = generate_graphDocuments(model, graph, chunkId_chunkDoc_list, allowedNodes, allowedRelationship)
 
-def get_source_list_from_graph(uri,userName,password,db_name=None):
-  """
-  Args:
-    uri: URI of the graph to extract
-    db_name: db_name is database name to connect to graph db
-    userName: Username to use for graph creation ( if None will use username from config file )
-    password: Password to use for graph creation ( if None will use password from config file )
-    file: File object containing the PDF file to be used
-    model: Type of model to use ('Diffbot'or'OpenAI GPT')
-  Returns:
-   Returns a list of sources that are in the database by querying the graph and
-   sorting the list by the last updated date. 
- """
-  logging.info("Get existing files list from graph")
-  graph = Neo4jGraph(url=uri, database=db_name, username=userName, password=password)
-  graph_DB_dataAccess = graphDBdataAccess(graph)
-  if not graph._driver._closed:
-      logging.info(f"closing connection for sources_list api")
-      #graph._driver.close()
-  return graph_DB_dataAccess.get_source_list()
+    # Save graph documents
+    save_graphDocuments_in_neo4j(graph, graph_documents)
+
+    # Create relationships between chunks and entities
+    chunks_and_graphDocuments_list = get_chunk_and_graphDocument(graph_documents, chunkId_chunkDoc_list)
+    merge_relationship_between_chunk_and_entites(graph, chunks_and_graphDocuments_list)
+
+    # Count nodes and relationships
+    distinct_nodes = set()
+    relations = []
+    for graph_document in graph_documents:
+        # Get distinct nodes
+        for node in graph_document.nodes:
+            node_id = node.id
+            node_type = node.type
+            if (node_id, node_type) not in distinct_nodes:
+                distinct_nodes.add((node_id, node_type))
+
+        # Get all relations
+        for relation in graph_document.relationships:
+            relations.append(relation.type)
+
+    node_count += len(distinct_nodes)
+    rel_count += len(relations)
+
+    logging.info(f'Node count: {node_count}, Relation count: {rel_count}')
+    return node_count, rel_count
+
+def get_source_list_from_graph(uri, userName, password, db_name=None):
+    """Get list of sources from the graph"""
+    logging.info("Get existing files list from graph")
+    graph = Neo4jGraph(url=uri, database=db_name, username=userName, password=password)
+    graph_DB_dataAccess = graphDBdataAccess(graph)
+
+    if not graph._driver._closed:
+        logging.info("Closing connection for sources_list api")
+
+    return graph_DB_dataAccess.get_source_list()
 
 def update_graph(graph):
-  """
-  Update the graph node with SIMILAR relationship where embedding scrore match
-  """
-  graph_DB_dataAccess = graphDBdataAccess(graph)
-  graph_DB_dataAccess.update_KNN_graph()
+    """Update graph with KNN relationships"""
+    graph_DB_dataAccess = graphDBdataAccess(graph)
+    graph_DB_dataAccess.update_KNN_graph()
 
-  
 def connection_check(graph):
-  """
-  Args:
-    uri: URI of the graph to extract
-    userName: Username to use for graph creation ( if None will use username from config file )
-    password: Password to use for graph creation ( if None will use password from config file )
-    db_name: db_name is database name to connect to graph db
-  Returns:
-   Returns a status of connection from NEO4j is success or failure
- """
-  graph_DB_dataAccess = graphDBdataAccess(graph)
-  return graph_DB_dataAccess.connection_check()
-
-def merge_chunks_local(file_name, total_chunks, chunk_dir, merged_dir):
-
-  if not os.path.exists(merged_dir):
-      os.mkdir(merged_dir)
-  logging.info(f'Merged File Path: {merged_dir}')
-  merged_file_path = os.path.join(merged_dir, file_name)
-  with open(merged_file_path, "wb") as write_stream:
-      for i in range(1,total_chunks+1):
-          chunk_file_path = os.path.join(chunk_dir, f"{file_name}_part_{i}")
-          logging.info(f'Chunk File Path While Merging Parts:{chunk_file_path}')
-          with open(chunk_file_path, "rb") as chunk_file:
-              shutil.copyfileobj(chunk_file, write_stream)
-          os.unlink(chunk_file_path)  # Delete the individual chunk file after merging
-  logging.info("Chunks merged successfully and return file size")
-  file_name, pages, file_extension, all_image_info_list = get_documents_from_file_by_path(merged_file_path, file_name)
-  pdf_total_pages = pages[0].metadata['total_pages']
-  file_size = os.path.getsize(merged_file_path)
-  return pdf_total_pages, file_size
-  
-
-
-def upload_file(graph, model, chunk, chunk_number:int, total_chunks:int, originalname, uri, chunk_dir, merged_dir):
-  
-  gcs_file_cache = os.environ.get('GCS_FILE_CACHE')
-  logging.info(f'gcs file cache: {gcs_file_cache}')
-  
-  if gcs_file_cache == 'True':
-    folder_name = create_gcs_bucket_folder_name_hashed(uri,originalname)
-    upload_file_to_gcs(chunk, chunk_number, originalname, BUCKET_UPLOAD, folder_name)
-  else:
-    if not os.path.exists(chunk_dir):
-      os.mkdir(chunk_dir)
-    
-    chunk_file_path = os.path.join(chunk_dir, f"{originalname}_part_{chunk_number}")
-    logging.info(f'Chunk File Path: {chunk_file_path}')
-    
-    with open(chunk_file_path, "wb") as chunk_file:
-      chunk_file.write(chunk.file.read())
-
-  if int(chunk_number) == int(total_chunks):
-      # If this is the last chunk, merge all chunks into a single file
-      if gcs_file_cache == 'True':
-        file_size = merge_file_gcs(BUCKET_UPLOAD, originalname, folder_name, int(total_chunks))
-        total_pages = 1
-      else:
-        total_pages, file_size = merge_chunks_local(originalname, int(total_chunks), chunk_dir, merged_dir)
-      
-      logging.info("File merged successfully")
-      file_extension = originalname.split('.')[-1]
-      obj_source_node = sourceNode()
-      obj_source_node.file_name = originalname
-      obj_source_node.file_type = file_extension
-      obj_source_node.file_size = file_size
-      obj_source_node.file_source = 'local file'
-      obj_source_node.model = model
-      obj_source_node.total_pages = total_pages
-      obj_source_node.created_at = datetime.now()
-      graphDb_data_Access = graphDBdataAccess(graph)
-        
-      graphDb_data_Access.create_source_node(obj_source_node)
-      return {'file_size': file_size, 'total_pages': total_pages, 'file_name': originalname, 'file_extension':file_extension, 'message':f"Chunk {chunk_number}/{total_chunks} saved"}
-  return f"Chunk {chunk_number}/{total_chunks} saved"
+    """Check connection to Neo4j"""
+    graph_DB_dataAccess = graphDBdataAccess(graph)
+    return graph_DB_dataAccess.connection_check()
 
 def get_labels_and_relationtypes(graph):
-  query = """
-          RETURN collect { 
-          CALL db.labels() yield label 
-          WHERE NOT label  IN ['Chunk','_Bloom_Perspective_'] 
-          return label order by label limit 100 } as labels, 
-          collect { 
-          CALL db.relationshipTypes() yield relationshipType  as type 
-          WHERE NOT type  IN ['PART_OF', 'NEXT_CHUNK', 'HAS_ENTITY', '_Bloom_Perspective_'] 
-          return type order by type LIMIT 100 } as relationshipTypes
-          """
-  graphDb_data_Access = graphDBdataAccess(graph)
-  result = graphDb_data_Access.execute_query(query)
-  if result is None:
-     result=[]
-  return result
+    """Get all labels and relationship types from the graph"""
+    query = """
+    RETURN collect {
+    CALL db.labels() yield label
+    WHERE NOT label IN ['Chunk','_Bloom_Perspective_']
+    return label order by label limit 100 } as labels,
+    collect {
+    CALL db.relationshipTypes() yield relationshipType as type
+    WHERE NOT type IN ['PART_OF', 'NEXT_CHUNK', 'HAS_ENTITY', '_Bloom_Perspective_']
+    return type order by type LIMIT 100 } as relationshipTypes
+    """
+    graphDb_data_Access = graphDBdataAccess(graph)
+    result = graphDb_data_Access.execute_query(query)
+    if result is None:
+        result = []
+    return result
 
 def manually_cancelled_job(graph, filenames, source_types, merged_dir, uri):
-  
-  filename_list= list(map(str.strip, json.loads(filenames)))
-  source_types_list= list(map(str.strip, json.loads(source_types)))
-  gcs_file_cache = os.environ.get('GCS_FILE_CACHE')
-  
-  for (file_name,source_type) in zip(filename_list, source_types_list):
-      obj_source_node = sourceNode()
-      obj_source_node.file_name = file_name
-      obj_source_node.is_cancelled = True
-      obj_source_node.status = 'Cancelled'
-      obj_source_node.updated_at = datetime.now()
-      graphDb_data_Access = graphDBdataAccess(graph)
-      graphDb_data_Access.update_source_node(obj_source_node)
-      obj_source_node = None
-      merged_file_path = os.path.join(merged_dir, file_name)
-      if source_type == 'local file' and gcs_file_cache == 'True':
-          folder_name = create_gcs_bucket_folder_name_hashed(uri, file_name)
-          delete_file_from_gcs(BUCKET_UPLOAD,folder_name,file_name)
-      else:
-        logging.info(f'Deleted File Path: {merged_file_path} and Deleted File Name : {file_name}')
-        delete_uploaded_local_file(merged_file_path,file_name)
-  return "Cancelled the processing job successfully"
+    """Manually cancel processing jobs"""
+    filename_list = list(map(str.strip, json.loads(filenames)))
+    source_types_list = list(map(str.strip, json.loads(source_types)))
+    gcs_file_cache = os.environ.get('GCS_FILE_CACHE')
+
+    for (file_name, source_type) in zip(filename_list, source_types_list):
+        obj_source_node = sourceNode()
+        obj_source_node.file_name = file_name
+        obj_source_node.is_cancelled = True
+        obj_source_node.status = 'Cancelled'
+        obj_source_node.updated_at = datetime.now()
+
+        graphDb_data_Access = graphDBdataAccess(graph)
+        graphDb_data_Access.update_source_node(obj_source_node)
+
+        # Clean up files
+        if source_type == 'local file':
+            if gcs_file_cache == 'True':
+                logging.warning("GCS integration removed. Using local file deletion instead.")
+                folder_name = create_gcs_bucket_folder_name_hashed(uri, file_name)
+                logging.info(f'Skipped GCS cleanup for {file_name}')
+            else:
+                merged_file_path = os.path.join(merged_dir, file_name)
+                if os.path.exists(merged_file_path):
+                    os.remove(merged_file_path)
+                    logging.info(f'Deleted file: {merged_file_path}')
+
+    return "Cancelled the processing job successfully"
 
 def populate_graph_schema_from_text(text, model, is_schema_description_cheked):
-  """_summary_
-
-  Args:
-      graph (Neo4Graph): Neo4jGraph connection object
-      input_text (str): rendom text from PDF or user input.
-      model (str): AI model to use extraction from text
-
-  Returns:
-      data (list): list of lebels and relationTypes
-  """
-  result = schema_extraction_from_text(text, model, is_schema_description_cheked)
-  return {"labels": result.labels, "relationshipTypes": result.relationshipTypes}
+    """Extract schema from text"""
+    result = schema_extraction_from_text(text, model, is_schema_description_cheked)
+    return {"labels": result.labels, "relationshipTypes": result.relationshipTypes}

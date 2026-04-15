@@ -19,7 +19,7 @@ export default function WebInput({ setIsLoading }: { setIsLoading: React.Dispatc
     isValid,
     onClose,
     onPasteHandler,
-  } = useSourceInput(webLinkValidation, setIsLoading, 'web-url', false, false, true);
+  } = useSourceInput(webLinkValidation, setIsLoading, 'web-url', true);
   return (
     <CustomSourceInput
       onCloseHandler={onClose}

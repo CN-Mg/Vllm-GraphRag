@@ -11,7 +11,7 @@ from pathlib import Path
 # 添加 src 到路径
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from document_sources.local_file import get_documents_from_file_by_path
+from src.document_sources.local_file import get_documents_from_file_by_path
 from langchain_community.graphs import Neo4jGraph
 from dotenv import load_dotenv
 import fitz

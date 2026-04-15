@@ -2,8 +2,7 @@ import logging
 import os
 from datetime import datetime
 from langchain_community.graphs import Neo4jGraph
-from src.shared.common_fn import create_gcs_bucket_folder_name_hashed, delete_uploaded_local_file
-from src.document_sources.gcs_bucket import delete_file_from_gcs
+from src.shared.common_fn import delete_uploaded_local_file
 from src.shared.constants import BUCKET_UPLOAD
 from src.entities.source_node import sourceNode
 import json
@@ -32,20 +31,15 @@ class graphDBdataAccess:
             job_status = "New"
             logging.info("creating source node if does not exist")
             self.graph.query("""MERGE(d:Document {fileName :$fn}) SET d.fileSize = $fs, d.fileType = $ft ,
-                            d.status = $st, d.url = $url, d.awsAccessKeyId = $awsacc_key_id, 
-                            d.fileSource = $f_source, d.createdAt = $c_at, d.updatedAt = $u_at, 
-                            d.processingTime = $pt, d.errorMessage = $e_message, d.nodeCount= $n_count, 
-                            d.relationshipCount = $r_count, d.model= $model, d.gcsBucket=$gcs_bucket, 
-                            d.gcsBucketFolder= $gcs_bucket_folder, d.language= $language,d.gcsProjectId= $gcs_project_id,
-                            d.is_cancelled=False, d.total_chunks=0, d.processed_chunk=0, d.total_pages=$total_pages,
-                            d.access_token=$access_token""",
-                            {"fn":obj_source_node.file_name, "fs":obj_source_node.file_size, "ft":obj_source_node.file_type, "st":job_status, 
+                            d.status = $st, d.url = $url, d.fileSource = $f_source, d.createdAt = $c_at, d.updatedAt = $u_at,
+                            d.processingTime = $pt, d.errorMessage = $e_message, d.nodeCount= $n_count,
+                            d.relationshipCount = $r_count, d.model= $model, d.language= $language,
+                            d.is_cancelled=False, d.total_chunks=0, d.processed_chunk=0, d.total_pages=$total_pages""",
+                            {"fn":obj_source_node.file_name, "fs":obj_source_node.file_size, "ft":obj_source_node.file_type, "st":job_status,
                             "url":obj_source_node.url,
-                            "awsacc_key_id":obj_source_node.awsAccessKeyId, "f_source":obj_source_node.file_source, "c_at":obj_source_node.created_at,
+                            "f_source":obj_source_node.file_source, "c_at":obj_source_node.created_at,
                             "u_at":obj_source_node.created_at, "pt":0, "e_message":'', "n_count":0, "r_count":0, "model":obj_source_node.model,
-                            "gcs_bucket": obj_source_node.gcsBucket, "gcs_bucket_folder": obj_source_node.gcsBucketFolder, 
-                            "language":obj_source_node.language, "gcs_project_id":obj_source_node.gcsProjectId, "total_pages": obj_source_node.total_pages,
-                            "access_token":obj_source_node.access_token})
+                            "language":obj_source_node.language, "total_pages": obj_source_node.total_pages})
         except Exception as e:
             error_message = str(e)
             logging.info(f"error_message = {error_message}")
@@ -171,16 +165,11 @@ class graphDBdataAccess:
         # filename_list = filenames.split(',')
         filename_list= list(map(str.strip, json.loads(filenames)))
         source_types_list= list(map(str.strip, json.loads(source_types)))
-        gcs_file_cache = os.environ.get('GCS_FILE_CACHE')
         # source_types_list = source_types.split(',')
         for (file_name,source_type) in zip(filename_list, source_types_list):
             merged_file_path = os.path.join(merged_dir, file_name)
-            if source_type == 'local file' and gcs_file_cache == 'True':
-                folder_name = create_gcs_bucket_folder_name_hashed(uri, file_name)
-                delete_file_from_gcs(BUCKET_UPLOAD,folder_name,file_name)
-            else:
-                logging.info(f'Deleted File Path: {merged_file_path} and Deleted File Name : {file_name}')
-                delete_uploaded_local_file(merged_file_path,file_name)
+            logging.info(f'Deleted File Path: {merged_file_path} and Deleted File Name : {file_name}')
+            delete_uploaded_local_file(merged_file_path,file_name)
         query_to_delete_document=""" 
            MATCH (d:Document) where d.fileName in $filename_list and d.fileSource in $source_types_list
             with collect(d) as documents 
