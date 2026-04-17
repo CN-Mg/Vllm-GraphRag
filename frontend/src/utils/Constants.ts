@@ -41,8 +41,8 @@ export const llms =
         'ollama_qwen3:8b',
       ];
 
-export const defaultLLM = llms?.includes('glm-4')
-  ? 'glm-4'
+export const defaultLLM = llms?.includes('glm-4.5-flash')
+  ? 'glm-4.5-flash'
   : llms?.includes('ollama_qwen3:8b')
   ? 'ollama_qwen3:8b'
   : 'GLM';

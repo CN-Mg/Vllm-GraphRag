@@ -32,6 +32,8 @@ from fastapi.middleware.gzip import GZipMiddleware
 import time
 import gc
 
+"""FastAPI 应用主入口"""
+
 logger = CustomLogger()
 CHUNK_DIR = os.path.join(os.path.dirname(__file__), "chunks")
 MERGED_DIR = os.path.join(os.path.dirname(__file__), "merged_files")
@@ -116,29 +118,16 @@ async def extract_knowledge_graph_from_file(
     language=Form(None)
 ):
     """
-    Calls 'extract_graph_from_file' in a new thread to create Neo4jGraph from a
-    PDF file based on the model.
+    在新线程中调用“extract_graph_from_file”,依据指定模型从PDF文件创建Neo4j图结构。
 
     Args:
-          uri: URI of the graph to extract
-          userName: Username to use for graph creation
-          password: Password to use for graph creation
-          file: File object containing the PDF file
-          model: Type of model to use ('Diffbot'or'OpenAI GPT')
+        uri:待提取图的统一资源标识符
+        userName:创建图时使用的用户名
+        password:创建图时使用的密码
+        file:包含PDF文件的文件对象
+        model:要使用的模型类型(“OpenAI”)
 
     Returns:
-          Nodes and Relations created in Neo4j databse for the pdf file
-          
-    在新线程中调用“extract_graph_from_file”，依据指定模型从PDF文件创建Neo4j图结构。
-
-    参数：
-        uri：待提取图的统一资源标识符
-        userName：创建图时使用的用户名
-        password：创建图时使用的密码
-        file：包含PDF文件的文件对象
-        model：要使用的模型类型（“Diffbot”或“OpenAI GPT”）
-
-    返回值：
         在Neo4j数据库中为该PDF文件创建的节点与关系
     """
     try:
@@ -255,10 +244,10 @@ async def get_images_list(uri=Form(None), userName=Form(None), password=Form(Non
         userName: 用户名
         password: 密码
         database: 数据库名
-        document_names: 可选的文档名列表（JSON字符串）
+        document_names: 可选的文档名列表(JSON字符串)
 
     Returns:
-        图片列表，每个图片包含URL和关联的chunks
+        图片列表,每个图片包含URL和关联的chunks
     """
     try:
         graph = create_graph_database_connection(uri, userName, password, database)

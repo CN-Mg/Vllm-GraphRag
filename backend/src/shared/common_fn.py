@@ -22,8 +22,10 @@ from langchain_google_vertexai import HarmBlockThreshold, HarmCategory
 from minio import Minio
 from minio.error import S3Error
 # from neo4j.debug import watch
-
 # watch("neo4j")
+
+"""commen_fn.py
+- 定义一些通用函数,如Embedding模型加载、URL检查、MinIO上传等"""
 
 # MinIO 配置（建议通过环境变量注入）
 MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "localhost:9000")
@@ -80,7 +82,7 @@ def check_url_source(source_type, url:str=None):
       logging.info(f"incoming URL: {url}")
 
       if source_type == 'web':
-        # Basic URL validation
+        # 基础URL验证
         if not url or not url.startswith(('http://', 'https://')):
             raise Exception('Invalid URL format')
         return url, 'en'  # Default to English
@@ -110,7 +112,7 @@ def create_graph_database_connection(uri, userName, password, database):
     graph = Neo4jGraph(url=uri, database=database, username=userName, password=password, refresh_schema=False, sanitize=True)    
   return graph
 
-# 加载embedding模型(Qwen GTE)
+# 从Modelscope中加载embedding模型(Qwen GTE)
 def load_embedding_model(embedding_model_name: str):
     if embedding_model_name.startswith("iic"):
         local_dir = "../data/embedding/"

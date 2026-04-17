@@ -10,7 +10,8 @@
       "Bash(xargs grep:*)",
       "Bash(git:*)",
       "Bash(python -m py_compile src/image_analysis.py src/QA_integration_new.py)",
-      "Bash(find D:\\\\_Fault_Diagnosis\\\\llm-graph-builder\\\\backend:*)"
+      "Bash(find D:\\\\_Fault_Diagnosis\\\\llm-graph-builder\\\\backend:*)",
+      "Bash(grep -E \"\\\\.\\(py|md\\)$\")"
     ]
   }
 }

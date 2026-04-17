@@ -2,7 +2,7 @@ MODEL_VERSIONS = {
         "openai-gpt-3.5": "gpt-3.5-turbo-16k",
         "gemini-1.0-pro": "gemini-1.0-pro-001",
         "gpt-4o":"gpt-4o",
-        "GLM": "glm-4",
+        "GLM": "glm-4.5-flash",
         "v-GLM": "glm-4.6v",
         "深度求索": "deepseek-chat",
         "通义千问": "qwen-long",

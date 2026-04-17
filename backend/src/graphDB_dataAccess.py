@@ -119,6 +119,7 @@ class graphDBdataAccess:
     def update_KNN_graph(self):
         """
         Update the graph node with SIMILAR relationship where embedding scrore match
+        (基于向量相似度)
         """
         index = self.graph.query("""show indexes yield * where type = 'VECTOR' and name = 'vector'""")
         # logging.info(f'show index vector: {index}')

@@ -5,7 +5,7 @@ ARG BACKEND_API_URL="http://localhost:8000"
 ARG REACT_APP_SOURCES=""
 ARG LLM_MODELS=""
 ARG GOOGLE_CLIENT_ID=""
-ARG BLOOM_URL="https://workspace-preview.neo4j.io/workspace/explore?connectURL={CONNECT_URL}&search=Show+me+a+graph&featureGenAISuggestions=true&featureGenAISuggestionsInternal=true"
+ARG BLOOM_URL="https://app.graphxr.cn/projects#zh"
 ARG TIME_PER_CHUNK=4
 ARG TIME_PER_PAGE=50
 ARG LARGE_FILE_SIZE=5242880

@@ -721,7 +721,7 @@ def _convert_to_graph_document(
 
 
 class LLMGraphTransformer:
-    """使用 LLM 将文档转换为基于图的文档的转换器"""
+    """使用 LLM 将文档转换为基于Graph的文档的转换器"""
 
     def __init__(
         self,
@@ -807,7 +807,7 @@ class LLMGraphTransformer:
 
     def process_response(self, document: Document) -> GraphDocument:
         """
-        处理单个文档，使用 LLM 将其转换为图文档
+        处理单个文档，使用 LLM 将其转换为Graph文档
         """
         text = document.page_content
         raw_schema = self.chain.invoke({"input": text})
